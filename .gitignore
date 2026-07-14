@@ -1,0 +1,12 @@
+# Cargo
+target/
+
+# Build ouptut
+build/
+
+# Editors
+.vscode/
+.idea/
+
+# OS
+.DS_Store
