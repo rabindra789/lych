@@ -37,7 +37,8 @@ SECTIONS
 
     /* Reverse a 16 KiB boot stack. */
     . = ALIGN(16);
-    . += 16K;
+    BOOT_STACK_SIZE = 16K;
+    . += BOOT_STACK_SIZE;
 
     __stack_top = .;
 }
