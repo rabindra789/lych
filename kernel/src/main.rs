@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+mod arch;
+
 use core::panic::PanicInfo;
 
 /// First Rust func to executed by the kernel
