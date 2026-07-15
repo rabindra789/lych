@@ -15,6 +15,9 @@ pub fn putc(c: u8) {
 
 pub fn puts(s: &str) {
     for byte in s.bytes() {
+        if byte == b'\n' {
+            putc(b'\r');
+        }
         putc(byte);
     }
 }

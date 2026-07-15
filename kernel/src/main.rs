@@ -10,6 +10,7 @@ use core::panic::PanicInfo;
 #[unsafe(no_mangle)]
 pub extern "C" fn kernel_main() -> ! {
     uart::puts("Lych kernel\n");
+    uart::puts("Booting...\n");
     
     loop {
         core::hint::spin_loop();
