@@ -15,7 +15,7 @@ pub extern "C" fn kernel_main() -> ! {
     let el = arch::cpu::current_el();
 
     uart::puts("Current EL: ");
-    uart::put_digit(el as u8);
+    uart::put_hex(el);
     uart::putc(b'\n');
     
     loop {

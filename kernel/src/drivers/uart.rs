@@ -25,3 +25,18 @@ pub fn puts(s: &str) {
 pub fn put_digit(digit: u8) {
     putc(b'0' + digit)
 }
+
+pub fn put_hex(value: u64) {
+    puts("0x");
+
+    for shift in (0..16).rev() {
+        let nibble = ((value >> (shift * 4)) & 0xF) as u8;
+
+        let c = match nibble {
+            0..=9 => b'0' + nibble,
+            _ => b'A' + (nibble - 10),
+        };
+
+        putc(c);
+    }
+}
