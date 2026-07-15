@@ -21,3 +21,7 @@ pub fn puts(s: &str) {
         putc(byte);
     }
 }
+
+pub fn put_digit(digit: u8) {
+    putc(b'0' + digit)
+}

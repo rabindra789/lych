@@ -12,6 +12,11 @@ use core::panic::PanicInfo;
 pub extern "C" fn kernel_main() -> ! {
     uart::puts("Lych kernel\n");
     uart::puts("Booting...\n");
+    let el = arch::cpu::current_el();
+
+    uart::puts("Current EL: ");
+    uart::put_digit(el as u8);
+    uart::putc(b'\n');
     
     loop {
         core::hint::spin_loop();
