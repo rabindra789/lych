@@ -2,8 +2,9 @@
 #![no_main]
 
 mod arch;
-mod uart;
+mod drivers;
 
+use drivers::uart;
 use core::panic::PanicInfo;
 
 /// First Rust func to executed by the kernel
