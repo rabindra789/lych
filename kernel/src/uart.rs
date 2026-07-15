@@ -12,3 +12,9 @@ pub fn putc(c: u8) {
         UART_DR.write_volatile(c as u32);
     }
 }
+
+pub fn puts(s: &str) {
+    for byte in s.bytes() {
+        putc(byte);
+    }
+}
