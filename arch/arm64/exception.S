@@ -18,8 +18,10 @@ vector_table:
     /* Same EL, using SP_ELx */
     .balign 0x80
     sync_current_el_spx:
-        b .
-        
+        mrs x0, esr_el1
+    1:
+        b 1b
+
     VECTOR_ENTRY
     VECTOR_ENTRY
     VECTOR_ENTRY
