@@ -17,6 +17,10 @@ pub extern "C" fn kernel_main() -> ! {
     uart::puts("Current EL: ");
     uart::put_hex(el);
     uart::putc(b'\n');
+
+    unsafe {
+        arch::cpu::init_exception();
+    }
     
     loop {
         core::hint::spin_loop();
