@@ -21,6 +21,10 @@ pub extern "C" fn kernel_main() -> ! {
     unsafe {
         arch::cpu::init_exception();
     }
+
+    unsafe {
+        core::arch::asm!("brk #0")
+    }
     
     loop {
         core::hint::spin_loop();

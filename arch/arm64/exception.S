@@ -16,7 +16,10 @@ vector_table:
     VECTOR_ENTRY
 
     /* Same EL, using SP_ELx */
-    VECTOR_ENTRY
+    .balign 0x80
+    sync_current_el_spx:
+        b .
+        
     VECTOR_ENTRY
     VECTOR_ENTRY
     VECTOR_ENTRY
