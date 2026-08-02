@@ -49,7 +49,7 @@ pub extern "C" fn exception_handler(esr: u64, elr: u64) -> ! {
     let ec = arch::exception::exception_class(esr);
 
     uart::puts("EC: ");
-    uart::put_hex(ec as u64);
+    uart::puts(arch::exception::exception_name(ec));
     uart::putc(b'\n');
 
     uart::puts("ELR_EL1: ");
