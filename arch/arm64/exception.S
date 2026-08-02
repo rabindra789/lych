@@ -29,10 +29,22 @@ vector_table:
     /* Same EL, using SP_ELx */
     .balign 0x80
     sync_current_el_spx:
+        // Save x0 and x1 from the interrupted program
         stp x0, x1, [sp, #-16]!
-        
-        mrs x0, esr_el1
-        mrs x1, elr_el1
+
+        // Allocate space for ExceptionFrame.
+        sub sp, sp, #16
+
+        // Read exception registers.
+        mrs x1, esr_el1
+        mrs x2, elr_el1
+
+        // Build ExceptionFrame on the stack.
+        str x1, [sp]
+        str x2, [sp, #8]
+
+        // x0 = &ExceptionFrame
+        mov x0, sp
 
         bl exception_handler
     1:
