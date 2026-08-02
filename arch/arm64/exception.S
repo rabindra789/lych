@@ -1,3 +1,14 @@
+/*
+ * Exception handling flow:
+ *
+ * 1. CPU enters the vector table.
+ * 2. Save the interrupted CPU context.
+ * 3. Read exception registers.
+ * 4. Call the Rust exception handler.
+ * 5. Restore the CPU context.
+ * 6. Return with ERET.
+ */
+
 .section ".text"
 .global vector_table
 .global exception_vectors_init
@@ -18,6 +29,8 @@ vector_table:
     /* Same EL, using SP_ELx */
     .balign 0x80
     sync_current_el_spx:
+        stp x0, x1, [sp, #-16]!
+        
         mrs x0, esr_el1
         mrs x1, elr_el1
 
