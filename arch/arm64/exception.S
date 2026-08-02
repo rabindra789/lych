@@ -19,6 +19,7 @@ vector_table:
     .balign 0x80
     sync_current_el_spx:
         mrs x0, esr_el1
+        mrs x1, elr_el1
     1:
         b 1b
 
