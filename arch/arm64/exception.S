@@ -20,6 +20,8 @@ vector_table:
     sync_current_el_spx:
         mrs x0, esr_el1
         mrs x1, elr_el1
+
+        bl exception_handler
     1:
         b 1b
 

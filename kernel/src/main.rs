@@ -37,3 +37,20 @@ fn panic(_info: &PanicInfo) -> ! {
         core::hint::spin_loop();
     }
 }
+
+#[unsafe(no_mangle)]
+pub extern "C" fn exception_handler(esr: u64, elr: u64) -> ! {
+    uart::puts("\n=== Exception ===\n");
+
+    uart::puts("ESR_EL1: ");
+    uart::put_hex(esr);
+    uart::putc(b'\n');
+
+    uart::puts("ELR_EL1: ");
+    uart::put_hex(elr);
+    uart::putc(b'\n');
+
+    loop {
+        core::hint::spin_loop();
+    }
+}
