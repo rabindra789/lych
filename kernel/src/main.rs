@@ -42,21 +42,25 @@ fn panic(_info: &PanicInfo) -> ! {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn exception_handler(frame: &ExceptionFrame) -> ! {
-    uart::puts("\n=== Exception ===\n");
-
-    uart::puts("ESR_EL1: ");
-    uart::put_hex(frame.esr);
-    uart::putc(b'\n');
-
     let ec = arch::exception::exception_class(frame.esr);
 
-    uart::puts("EC: ");
+    uart::puts("\n");
+    uart::puts("Lych Kernel Exception\n");
+    uart::puts("-------------------------------\n");
+
+    uart::puts("Exception : ");
     uart::puts(arch::exception::exception_name(ec));
     uart::putc(b'\n');
 
-    uart::puts("ELR_EL1: ");
+    uart::puts("ESR_EL1   : ");
+    uart::put_hex(frame.esr);
+    uart::putc(b'\n');
+
+    uart::puts("ELR_EL1   : ");
     uart::put_hex(frame.elr);
     uart::putc(b'\n');
+
+    uart::puts("\nKernel halted.\n");
 
     loop {
         core::hint::spin_loop();
