@@ -8,3 +8,9 @@ pub fn exception_name(ec: u8) -> &'static str {
         _ => "Unknown",
     }
 }
+
+#[repr(C)]
+pub struct ExceptionFrame {
+    pub esr: u64,
+    pub elr: u64,
+}
