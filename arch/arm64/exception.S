@@ -18,6 +18,10 @@
     b .
 .endm
 
+.macro PUSH_PAIR r1, r2
+    stp \r1, \r2, [sp, #-16]!
+.endm
+
 .balign 0x800
 vector_table:
     /* Same EL, using SP_EL0 */
@@ -30,7 +34,7 @@ vector_table:
     .balign 0x80
     sync_current_el_spx:
         // Save x0 and x1 from the interrupted program
-        stp x0, x1, [sp, #-16]!
+        PUSH_PAIR x0, x1
 
         // Allocate space for ExceptionFrame.
         sub sp, sp, #16
