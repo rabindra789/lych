@@ -22,6 +22,10 @@
     stp \r1, \r2, [sp, #-16]!
 .endm
 
+.macro POP_PAIR r1, r2
+    ldp \r1, \r2, [sp], #16
+.endm
+
 .balign 0x800
 vector_table:
     /* Same EL, using SP_EL0 */
@@ -35,6 +39,7 @@ vector_table:
     sync_current_el_spx:
         // Save x0 and x1 from the interrupted program
         PUSH_PAIR x0, x1
+        PUSH_PAIR x2, x3
 
         // Allocate space for ExceptionFrame.
         sub sp, sp, #16
