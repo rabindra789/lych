@@ -37,11 +37,11 @@ vector_table:
     /* Same EL, using SP_ELx */
     .balign 0x80
     sync_current_el_spx:
-        // Phase 1: Preserve context.
+        // Save x0 and x1 from the interrupted program
         PUSH_PAIR x0, x1
         PUSH_PAIR x2, x3
 
-        // Build Exception Frame
+        // Allocate space for ExceptionFrame.
         sub sp, sp, #16
 
         // Read exception registers.
@@ -52,8 +52,9 @@ vector_table:
         str x1, [sp]
         str x2, [sp, #8]
 
-        // Enter Rust
+        // x0 = &ExceptionFrame
         mov x0, sp
+
         bl exception_handler
     1:
         b 1b
