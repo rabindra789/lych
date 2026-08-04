@@ -40,6 +40,9 @@ vector_table:
         // Phase 1: Preserve context
         PUSH_PAIR x0, x1
         PUSH_PAIR x2, x3
+        PUSH_PAIR x4, x5
+        PUSH_PAIR x6, x7
+        PUSH_PAIR x8, x9
 
         // Phase 2: Build exception frame
         sub sp, sp, #16
