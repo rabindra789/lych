@@ -38,11 +38,21 @@ vector_table:
     .balign 0x80
     sync_current_el_spx:
         // Phase 1: Preserve context
-        PUSH_PAIR x0, x1
-        PUSH_PAIR x2, x3
-        PUSH_PAIR x4, x5
-        PUSH_PAIR x6, x7
-        PUSH_PAIR x8, x9
+        PUSH_PAIR x0,  x1
+        PUSH_PAIR x2,  x3
+        PUSH_PAIR x4,  x5
+        PUSH_PAIR x6,  x7
+        PUSH_PAIR x8,  x9
+        PUSH_PAIR x10, x11
+        PUSH_PAIR x12, x13
+        PUSH_PAIR x14, x15
+        PUSH_PAIR x16, x17
+        PUSH_PAIR x18, x19
+        PUSH_PAIR x20, x21
+        PUSH_PAIR x22, x23
+        PUSH_PAIR x24, x25
+        PUSH_PAIR x26, x27
+        PUSH_PAIR x28, x29
 
         // Phase 2: Build exception frame
         sub sp, sp, #16

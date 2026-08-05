@@ -9,16 +9,10 @@ pub fn exception_name(ec: u8) -> &'static str {
     }
 }
 
-#[repr(C)]
-pub struct CpuContext {
-    // General purpose registers (x0-x30)
-    pub regs: [u64; 31]
-}
 
 #[repr(C)]
 pub struct ExceptionFrame {
-    pub context: CpuContext,
-
+    
     pub esr: u64,
     pub elr: u64,
 }
