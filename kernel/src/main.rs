@@ -72,5 +72,13 @@ pub extern "C" fn exception_handler(frame: &ExceptionFrame) {
 
     uart::puts("\nKernel halted.\n");
 
+    let ec = arch::exception::exception_class(frame.esr);
+
+    if ec == 0x3C {
+        unsafe {
+            arch::cpu::set_elr_el1(frame.elr + 4);
+        }
+    }
+
     return;
 }
