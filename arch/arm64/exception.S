@@ -70,6 +70,28 @@ vector_table:
         // Phase 3: Enter Rust
         mov x0, sp
         bl exception_handler
+
+        // Phase 4: Restore context
+        add sp, sp, #24
+
+        ldr x30, [sp], #8
+
+        POP_PAIR x28, x29
+        POP_PAIR x26, x27
+        POP_PAIR x24, x25
+        POP_PAIR x22, x23
+        POP_PAIR x20, x21
+        POP_PAIR x18, x19
+        POP_PAIR x16, x17
+        POP_PAIR x14, x15
+        POP_PAIR x12, x13
+        POP_PAIR x10, x11
+        POP_PAIR x8,  x9
+        POP_PAIR x6,  x7
+        POP_PAIR x4,  x5
+        POP_PAIR x2,  x3
+        POP_PAIR x0,  x1
+        
     1:
         b 1b
 

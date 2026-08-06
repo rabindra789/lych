@@ -41,7 +41,7 @@ fn panic(_info: &PanicInfo) -> ! {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn exception_handler(frame: &ExceptionFrame) -> ! {
+pub extern "C" fn exception_handler(frame: &ExceptionFrame) {
     let ec = arch::exception::exception_class(frame.esr);
 
     uart::puts("\n");
@@ -65,14 +65,12 @@ pub extern "C" fn exception_handler(frame: &ExceptionFrame) -> ! {
     uart::putc(b'\n');
     
     let previous_el = arch::exception::previous_exception_level(frame.spsr);
-    
+
     uart::puts("Previous EL: ");
     uart::puts(arch::exception::exception_level_name(previous_el));
     uart::putc(b'\n');
 
     uart::puts("\nKernel halted.\n");
 
-    loop {
-        core::hint::spin_loop();
-    }
+    return;
 }
