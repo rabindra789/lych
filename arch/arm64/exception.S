@@ -57,13 +57,15 @@ vector_table:
         str x30, [sp, #-8]!
 
         // Phase 2: Build exception frame
-        sub sp, sp, #16
+        sub sp, sp, #24
 
         mrs x1, esr_el1
         mrs x2, elr_el1
+        mrs x3, spsr_el1
 
         str x1, [sp]
         str x2, [sp, #8]
+        str x3, [sp, #16]
 
         // Phase 3: Enter Rust
         mov x0, sp

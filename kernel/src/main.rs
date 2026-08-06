@@ -60,6 +60,10 @@ pub extern "C" fn exception_handler(frame: &ExceptionFrame) -> ! {
     uart::put_hex(frame.elr);
     uart::putc(b'\n');
 
+    uart::puts("SPSR_EL1  : ");
+    uart::put_hex(frame.spsr);
+    uart::putc(b'\n');
+
     uart::puts("\nKernel halted.\n");
 
     loop {

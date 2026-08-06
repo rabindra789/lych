@@ -12,7 +12,10 @@ pub fn exception_name(ec: u8) -> &'static str {
 
 #[repr(C)]
 pub struct ExceptionFrame {
-    
+    /// Exception Syndrome Register
     pub esr: u64,
+    /// Exception Link Register
     pub elr: u64,
+    /// Saved Program Status Register
+    pub spsr: u64,
 }
