@@ -54,6 +54,8 @@ vector_table:
         PUSH_PAIR x26, x27
         PUSH_PAIR x28, x29
 
+        str x30, [sp, #-8]!
+
         // Phase 2: Build exception frame
         sub sp, sp, #16
 
