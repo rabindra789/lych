@@ -23,12 +23,3 @@ pub unsafe fn init_exception() {
         exception_vectors_init();
     }
 }
-
-pub unsafe fn set_elr_el1(value: u64) {
-    unsafe {
-        asm!(
-            "msr elr_el1, {}",
-            in(reg) value,
-        )
-    }
-}

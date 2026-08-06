@@ -72,8 +72,18 @@ vector_table:
         bl exception_handler
 
         // Phase 4: Restore context
+
+        //Restore system registers from the (possibly modified) ExceptionFrame.
+        ldr x1, [sp, #8]  // ELR_EL1
+        ldr x2, [sp, #16] // SPSR_EL1
+
+        msr elr_el1, x1
+        msr spsr_el1 ,x2
+
+        //Discard ExceptionFrame.
         add sp, sp, #24
 
+        // Restore general-purpose registers
         ldr x30, [sp], #8
 
         POP_PAIR x28, x29
