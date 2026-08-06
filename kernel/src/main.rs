@@ -63,6 +63,12 @@ pub extern "C" fn exception_handler(frame: &ExceptionFrame) -> ! {
     uart::puts("SPSR_EL1  : ");
     uart::put_hex(frame.spsr);
     uart::putc(b'\n');
+    
+    let previous_el = arch::exception::previous_exception_level(frame.spsr);
+    
+    uart::puts("Previous EL: ");
+    uart::puts(arch::exception::exception_level_name(previous_el));
+    uart::putc(b'\n');
 
     uart::puts("\nKernel halted.\n");
 
