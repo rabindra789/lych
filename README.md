@@ -1,5 +1,7 @@
 # Lych
 
+[![CI](https://github.com/rabindra789/lych/actions/workflows/ci.yml/badge.svg)](https://github.com/rabindra789/lych/actions/workflows/ci.yml)
+
 Lych is a monolithic operating system for ARM64, written in Rust from the ground up.
 
 The project focuses on understanding and building every major part of an operating system from first principles instead of treating it as a black box. Every subsystem is implemented step by step with an emphasis on simplicity, maintainability, and clear documentation.
