@@ -103,7 +103,7 @@ vector_table:
         POP_PAIR x0,  x1
         
     1:
-        b 1b
+        eret
 
     VECTOR_ENTRY
     VECTOR_ENTRY

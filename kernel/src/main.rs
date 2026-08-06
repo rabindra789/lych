@@ -28,6 +28,8 @@ pub extern "C" fn kernel_main() -> ! {
         core::arch::asm!("brk #0")
     }
     
+    uart::puts("After BRK\n");
+
     loop {
         core::hint::spin_loop();
     }
@@ -70,7 +72,7 @@ pub extern "C" fn exception_handler(frame: &mut ExceptionFrame) {
     uart::puts(arch::exception::exception_level_name(previous_el));
     uart::putc(b'\n');
 
-    uart::puts("\nKernel halted.\n");
+    uart::puts("\nReturning from exception...\n");
 
     let ec = arch::exception::exception_class(frame.esr);
 
