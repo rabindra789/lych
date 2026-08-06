@@ -37,7 +37,9 @@ vector_table:
     /* Same EL, using SP_ELx */
     .balign 0x80
     sync_current_el_spx:
+        // -------------------------
         // Phase 1: Preserve context
+        // -------------------------
         PUSH_PAIR x0,  x1
         PUSH_PAIR x2,  x3
         PUSH_PAIR x4,  x5
@@ -55,8 +57,9 @@ vector_table:
         PUSH_PAIR x28, x29
 
         str x30, [sp, #-8]!
-
+        // -------------------------
         // Phase 2: Build exception frame
+        // -------------------------
         sub sp, sp, #24
 
         mrs x1, esr_el1
@@ -67,11 +70,15 @@ vector_table:
         str x2, [sp, #8]
         str x3, [sp, #16]
 
+        // -------------------------
         // Phase 3: Enter Rust
+        // -------------------------
         mov x0, sp
         bl exception_handler
 
+        // -------------------------
         // Phase 4: Restore context
+        // -------------------------
 
         //Restore system registers from the (possibly modified) ExceptionFrame.
         ldr x1, [sp, #8]  // ELR_EL1

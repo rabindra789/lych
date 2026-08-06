@@ -25,10 +25,9 @@ pub extern "C" fn kernel_main() -> ! {
     }
 
     unsafe {
-        core::arch::asm!("brk #0")
+        core::arch::asm!("brk #0");
     }
     
-    uart::puts("After BRK\n");
 
     loop {
         core::hint::spin_loop();
@@ -37,7 +36,7 @@ pub extern "C" fn kernel_main() -> ! {
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    loop{
+    loop {
         core::hint::spin_loop();
     }
 }
@@ -72,14 +71,11 @@ pub extern "C" fn exception_handler(frame: &mut ExceptionFrame) {
     uart::puts(arch::exception::exception_level_name(previous_el));
     uart::putc(b'\n');
 
-    uart::puts("\nReturning from exception...\n");
-
-    let ec = arch::exception::exception_class(frame.esr);
-
-    if ec == 0x3C {
+    
+    if ec == arch::exception::EC_BREAKPOINT {
         // Skip over the BRK instruction when returning.
+        // ARM64 instructions are fixed-width (4 bytes).
         frame.elr += 4;
     }
 
-    return;
 }
