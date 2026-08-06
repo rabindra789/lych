@@ -32,12 +32,3 @@ pub unsafe fn set_elr_el1(value: u64) {
         )
     }
 }
-
-pub unsafe fn set_spsr_el1(value: u64) {
-    unsafe {
-        asm!(
-            "msr spsr_el1, {}",
-            in(reg) value,
-        )
-    }
-}

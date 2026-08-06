@@ -77,7 +77,6 @@ pub extern "C" fn exception_handler(frame: &ExceptionFrame) {
     if ec == 0x3C {
         unsafe {
             arch::cpu::set_elr_el1(frame.elr + 4);
-            arch::cpu::set_spsr_el1(frame.spsr);
         }
     }
 
