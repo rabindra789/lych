@@ -41,7 +41,7 @@ fn panic(_info: &PanicInfo) -> ! {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn exception_handler(frame: &ExceptionFrame) {
+pub extern "C" fn exception_handler(frame: &mut ExceptionFrame) {
     let ec = arch::exception::exception_class(frame.esr);
 
     uart::puts("\n");
@@ -75,9 +75,8 @@ pub extern "C" fn exception_handler(frame: &ExceptionFrame) {
     let ec = arch::exception::exception_class(frame.esr);
 
     if ec == 0x3C {
-        unsafe {
-            arch::cpu::set_elr_el1(frame.elr + 4);
-        }
+        // Skip over the BRK instruction when returning.
+        frame.elr += 4;
     }
 
     return;
