@@ -14,17 +14,23 @@ SECTIONS
 
     .text : ALIGN(4K)
     {
+        __text_start = .;
         *(.text*)
+        __text_end = .;
     }
 
     .rodata : ALIGN(4K)
     {
+        __rodata_start = .;
         *(.rodata*)
+        __rodata_end = .;
     }
 
     .data : ALIGN(4K)
     {
+        __data_start = .;
         *(.data*)
+        __data_end = .;
     }
 
     .bss (NOLOAD) : ALIGN(4K)

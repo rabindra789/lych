@@ -3,6 +3,7 @@
 
 mod arch;
 mod drivers;
+mod memory;
 
 use drivers::uart;
 use core::panic::PanicInfo;
@@ -28,6 +29,7 @@ pub extern "C" fn kernel_main() -> ! {
         core::arch::asm!("brk #0");
     }
     
+    memory::print_layout();
 
     loop {
         core::hint::spin_loop();
