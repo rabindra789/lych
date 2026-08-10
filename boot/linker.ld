@@ -7,6 +7,8 @@ SECTIONS
     /* Load the kernel at 0x40080000. */
     . = 0x40080000;
 
+    __kernel_start = .;
+
     .text.boot : ALIGN(4K)
     {
         KEEP(*(.text.boot))
@@ -41,8 +43,13 @@ SECTIONS
         __bss_end = .;
     }
 
+    __kernel_end = .;
+
     /* Reverse a 16 KiB boot stack. */
     . = ALIGN(16);
+
+    __stack_bottom = .;
+    
     BOOT_STACK_SIZE = 16K;
     . += BOOT_STACK_SIZE;
 
