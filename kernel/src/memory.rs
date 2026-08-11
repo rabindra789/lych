@@ -51,5 +51,11 @@ pub fn print_layout() {
         uart::puts("stack   : ");
         uart::put_hex(addr(&__stack_top));
         uart::putc(b'\n');
+
+        uart::puts("RAM     : ");
+        uart::put_hex(crate::platform::RAM_BASE);
+        uart::puts(" - ");
+        uart::put_hex(crate::platform::RAM_END);
+        uart::putc(b'\n');
     }
 }

@@ -4,6 +4,7 @@
 mod arch;
 mod drivers;
 mod memory;
+mod platform;
 
 use drivers::uart;
 use core::panic::PanicInfo;
