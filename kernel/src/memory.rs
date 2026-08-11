@@ -18,6 +18,18 @@ fn addr(symbol: &u8) -> u64 {
     symbol as *const u8 as u64
 }
 
+const PAGE_SIZE: u64 = 4096;
+
+fn align_up(addr: u64, alignment: u64) -> u64 {
+    (addr + alignment - 1) & !(alignment - 1)
+}
+
+pub fn usable_memory_start() -> u64 {
+    unsafe {
+        align_up(addr(&__stack_top), PAGE_SIZE)
+    }
+}
+
 pub fn print_layout() {
     use crate::drivers::uart;
 
@@ -54,6 +66,12 @@ pub fn print_layout() {
 
         uart::puts("RAM     : ");
         uart::put_hex(crate::platform::RAM_BASE);
+        uart::puts(" - ");
+        uart::put_hex(crate::platform::RAM_END);
+        uart::putc(b'\n');
+
+        uart::puts("usable  : ");
+        uart::put_hex(usable_memory_start());
         uart::puts(" - ");
         uart::put_hex(crate::platform::RAM_END);
         uart::putc(b'\n');
