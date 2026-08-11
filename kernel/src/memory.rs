@@ -64,6 +64,11 @@ pub fn frame_from_address(addr: u64) -> Option<Frame> {
     Some(Frame { start: addr })
 }
 
+pub fn frame_count() -> u64 {
+    let region = usable_memory_region();
+    (region.end - region.start) / PAGE_SIZE
+}
+
 pub fn print_layout() {
     use crate::drivers::uart;
 
@@ -126,6 +131,10 @@ pub fn print_layout() {
             None => uart::puts("invalid"),
         }
 
+        uart::putc(b'\n');
+
+        uart::puts("frames  : ");
+        uart::put_hex(frame_count());
         uart::putc(b'\n');
     }
 }
