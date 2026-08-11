@@ -4,6 +4,11 @@ pub struct MemoryRegion {
     pub end: u64,
 }
 
+#[repr(C)]
+pub struct Frame {
+    pub start: u64,
+}
+
 unsafe extern "C" {
     static __text_start: u8;
     static __text_end: u8;
@@ -43,6 +48,20 @@ pub fn usable_memory_region() -> MemoryRegion {
 
 pub fn is_page_aligned(addr: u64) -> bool {
     addr % PAGE_SIZE == 0
+}
+
+pub fn frame_from_address(addr: u64) -> Option<Frame> {
+    if !is_page_aligned(addr) {
+        return None;
+    }
+
+    let region = usable_memory_region();
+
+    if addr < region.start || addr >= region.end {
+        return None;
+    }
+
+    Some(Frame { start: addr })
 }
 
 pub fn print_layout() {
@@ -95,6 +114,18 @@ pub fn print_layout() {
 
         uart::puts("aligned : ");
         uart::put_hex(is_page_aligned(usable.start) as u64);
+        uart::putc(b'\n');
+
+        // Temp
+        let first_frame = frame_from_address(usable.start);
+
+        uart::puts("frame   : ");
+
+        match first_frame {
+            Some(frame) => uart::put_hex(frame.start),
+            None => uart::puts("invalid"),
+        }
+
         uart::putc(b'\n');
     }
 }
