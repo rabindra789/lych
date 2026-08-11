@@ -1,3 +1,9 @@
+#[repr(C)]
+pub struct MemoryRegion {
+    pub start: u64,
+    pub end: u64,
+}
+
 unsafe extern "C" {
     static __text_start: u8;
     static __text_end: u8;
@@ -25,8 +31,13 @@ fn align_up(addr: u64, alignment: u64) -> u64 {
 }
 
 pub fn usable_memory_start() -> u64 {
-    unsafe {
-        align_up(addr(&__stack_top), PAGE_SIZE)
+    unsafe { align_up(addr(&__stack_top), PAGE_SIZE) }
+}
+
+pub fn usable_memory_region() -> MemoryRegion {
+    MemoryRegion {
+        start: usable_memory_start(),
+        end: crate::platform::RAM_END,
     }
 }
 
@@ -70,10 +81,12 @@ pub fn print_layout() {
         uart::put_hex(crate::platform::RAM_END);
         uart::putc(b'\n');
 
+        let usable = usable_memory_region();
+
         uart::puts("usable  : ");
-        uart::put_hex(usable_memory_start());
+        uart::put_hex(usable.start);
         uart::puts(" - ");
-        uart::put_hex(crate::platform::RAM_END);
+        uart::put_hex(usable.end);
         uart::putc(b'\n');
     }
 }
