@@ -9,6 +9,11 @@ pub struct Frame {
     pub start: u64,
 }
 
+pub struct FrameRange {
+    current: u64,
+    end: u64,
+}
+
 unsafe extern "C" {
     static __text_start: u8;
     static __text_end: u8;
@@ -67,6 +72,37 @@ pub fn frame_from_address(addr: u64) -> Option<Frame> {
 pub fn frame_count() -> u64 {
     let region = usable_memory_region();
     (region.end - region.start) / PAGE_SIZE
+}
+
+impl FrameRange {
+    pub fn new(region: MemoryRegion) -> Self {
+        Self {
+            current: region.start,
+            end: region.end,
+        }
+    }
+}
+
+impl Iterator for FrameRange {
+    type Item = Frame;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current >= self.end {
+            return None;
+        }
+
+        let frame = Frame {
+            start: self.current,
+        };
+
+        self.current += PAGE_SIZE;
+
+        Some(frame)
+    }
+}
+
+pub fn usable_frames() -> FrameRange {
+    FrameRange::new(usable_memory_region())
 }
 
 pub fn print_layout() {
@@ -135,6 +171,26 @@ pub fn print_layout() {
 
         uart::puts("frames  : ");
         uart::put_hex(frame_count());
+        uart::putc(b'\n');
+
+        let mut frames = usable_frames();
+
+        uart::puts("first   : ");
+        if let Some(frame) = frames.next() {
+            uart::put_hex(frame.start);
+        }
+        uart::putc(b'\n');
+
+        uart::puts("second  : ");
+        if let Some(frame) = frames.next() {
+            uart::put_hex(frame.start);
+        }
+        uart::putc(b'\n');
+
+        uart::puts("third   : ");
+        if let Some(frame) = frames.next() {
+            uart::put_hex(frame.start);
+        }
         uart::putc(b'\n');
     }
 }
