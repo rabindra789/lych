@@ -76,6 +76,10 @@ pub fn frame_count() -> u64 {
 
 impl FrameRange {
     pub fn new(region: MemoryRegion) -> Self {
+        debug_assert!(region.start % PAGE_SIZE == 0);
+        debug_assert!(region.end % PAGE_SIZE == 0);
+        debug_assert!(region.start < region.end);
+
         Self {
             current: region.start,
             end: region.end,
@@ -155,42 +159,6 @@ pub fn print_layout() {
 
         uart::puts("aligned : ");
         uart::put_hex(is_page_aligned(usable.start) as u64);
-        uart::putc(b'\n');
-
-        // Temp
-        let first_frame = frame_from_address(usable.start);
-
-        uart::puts("frame   : ");
-
-        match first_frame {
-            Some(frame) => uart::put_hex(frame.start),
-            None => uart::puts("invalid"),
-        }
-
-        uart::putc(b'\n');
-
-        uart::puts("frames  : ");
-        uart::put_hex(frame_count());
-        uart::putc(b'\n');
-
-        let mut frames = usable_frames();
-
-        uart::puts("first   : ");
-        if let Some(frame) = frames.next() {
-            uart::put_hex(frame.start);
-        }
-        uart::putc(b'\n');
-
-        uart::puts("second  : ");
-        if let Some(frame) = frames.next() {
-            uart::put_hex(frame.start);
-        }
-        uart::putc(b'\n');
-
-        uart::puts("third   : ");
-        if let Some(frame) = frames.next() {
-            uart::put_hex(frame.start);
-        }
         uart::putc(b'\n');
     }
 }
