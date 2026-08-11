@@ -22,13 +22,20 @@ Lych is an open source project developed in India.
   - Previous Exception Level
 - Exception return with `ERET`
 - Resume execution after `BRK`
+- Kernel memory layout inspection
+  - `.text`, `.rodata`, `.data`, `.bss`, stack, RAM boundaries
+  - Usable RAM region computation
+- Physical frame abstraction
+  - Frame iteration over usable RAM
+  - Frame allocation (bump allocator)
+  - Bitmap allocator design (sizing and reservation helpers)
 
 ## Roadmap
 
+- Bitmap-backed frame allocator
 - Additional synchronous exceptions
 - Interrupt handling (IRQ)
 - Generic timer
-- Physical memory management
 - MMU
 - Virtual memory
 - Scheduler
