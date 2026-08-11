@@ -1,4 +1,4 @@
-use super::Frame;
+use super::{Frame, PAGE_SIZE};
 
 pub struct FrameAllocator {
     next: u64,
@@ -22,8 +22,14 @@ impl FrameAllocator {
             start: self.next,
         };
 
-        self.next += super::PAGE_SIZE;
+        self.next += PAGE_SIZE;
 
         Some(frame)
+    }
+
+    pub fn deallocate(&mut self, frame:Frame) {
+        // Temp implementation
+        // Proper reusable-frame tracking comes with the bitmap allocator.
+        let _ = frame;
     }
 }

@@ -1,3 +1,5 @@
+pub mod allocator;
+
 #[repr(C)]
 pub struct MemoryRegion {
     pub start: u64,
