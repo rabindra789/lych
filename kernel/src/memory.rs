@@ -109,27 +109,6 @@ pub fn usable_frames() -> FrameRange {
     FrameRange::new(usable_memory_region())
 }
 
-pub fn verify_frame_range() -> bool {
-    let region = usable_memory_region();
-    let mut frames = usable_frames();
-
-    let mut count = 0;
-
-    while let Some(frame) = frames.next() {
-        if frame.start < region.start || frame.start >= region.end {
-            return false;
-        }
-
-        if !is_page_aligned(frame.start) {
-            return false;
-        }
-
-        count += 1;
-    }
-
-    count == frame_count()
-}
-
 pub fn print_layout() {
     use crate::drivers::uart;
 
