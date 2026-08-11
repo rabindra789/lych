@@ -121,20 +121,6 @@ pub fn print_layout() {
         uart::put_hex(is_page_aligned(usable.start) as u64);
         uart::putc(b'\n');
 
-        // Temp
-        let first_frame = frame_from_address(usable.start);
-
-        uart::puts("frame   : ");
-
-        match first_frame {
-            Some(frame) => uart::put_hex(frame.start),
-            None => uart::puts("invalid"),
-        }
-
-        uart::putc(b'\n');
-
-        uart::puts("frames  : ");
-        uart::put_hex(frame_count());
-        uart::putc(b'\n');
+        
     }
 }
