@@ -41,6 +41,10 @@ pub fn usable_memory_region() -> MemoryRegion {
     }
 }
 
+pub fn is_page_aligned(addr: u64) -> bool {
+    addr % PAGE_SIZE == 0
+}
+
 pub fn print_layout() {
     use crate::drivers::uart;
 
@@ -87,6 +91,10 @@ pub fn print_layout() {
         uart::put_hex(usable.start);
         uart::puts(" - ");
         uart::put_hex(usable.end);
+        uart::putc(b'\n');
+
+        uart::puts("aligned : ");
+        uart::put_hex(is_page_aligned(usable.start) as u64);
         uart::putc(b'\n');
     }
 }
