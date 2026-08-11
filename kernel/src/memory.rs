@@ -7,6 +7,7 @@ pub struct MemoryRegion {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct Frame {
     pub start: u64,
 }
@@ -116,6 +117,14 @@ impl Iterator for FrameRange {
 
 pub fn usable_frames() -> FrameRange {
     FrameRange::new(usable_memory_region())
+}
+
+pub fn bitmap_start() -> u64 {
+    usable_memory_start()
+}
+
+pub fn bitmap_size() -> u64 {
+    allocator::bitmap_size(frame_count())
 }
 
 pub fn print_layout() {
