@@ -42,3 +42,9 @@ pub fn bitmap_size(frame_count: u64) -> u64 {
     let words = (frame_count + 63) / 64;
     words * core::mem::size_of::<u64>() as u64
 }
+
+pub fn bitmap_end(start: u64, frame_count: u64) -> u64 {
+    let size = bitmap_size(frame_count);
+
+    super::align_up(start + size, super::PAGE_SIZE)
+}

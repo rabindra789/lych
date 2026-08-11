@@ -36,7 +36,7 @@ fn addr(symbol: &u8) -> u64 {
     symbol as *const u8 as u64
 }
 
-const PAGE_SIZE: u64 = 4096;
+pub const PAGE_SIZE: u64 = 4096;
 
 fn align_up(addr: u64, alignment: u64) -> u64 {
     (addr + alignment - 1) & !(alignment - 1)
@@ -47,6 +47,13 @@ pub fn usable_memory_start() -> u64 {
 }
 
 pub fn usable_memory_region() -> MemoryRegion {
+    MemoryRegion {
+        start: usable_memory_start(),
+        end: crate::platform::RAM_END,
+    }
+}
+
+pub fn raw_memory_region() -> MemoryRegion {
     MemoryRegion {
         start: usable_memory_start(),
         end: crate::platform::RAM_END,
