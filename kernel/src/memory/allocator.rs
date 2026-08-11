@@ -5,6 +5,10 @@ pub struct FrameAllocator {
     end: u64,
 }
 
+pub struct Bitmap {
+    bits: &'static mut [u64],
+}
+
 impl FrameAllocator {
     pub fn new(start: u64, end: u64) -> Self {
         Self {
@@ -32,4 +36,9 @@ impl FrameAllocator {
         // Proper reusable-frame tracking comes with the bitmap allocator.
         let _ = frame;
     }
+}
+
+pub fn bitmap_size(frame_count: u64) -> u64 {
+    let words = (frame_count + 63) / 64;
+    words * core::mem::size_of::<u64>() as u64
 }
