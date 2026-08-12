@@ -1,5 +1,9 @@
 use super::{Frame, PAGE_SIZE};
 
+pub struct PhysicalMemoryManager {
+    allocator: FrameAllocator,
+}
+
 pub struct FrameAllocator {
     start: u64,
     end: u64,
@@ -11,12 +15,19 @@ pub struct Bitmap {
 }
 
 impl FrameAllocator {
-    pub unsafe fn new(
+    pub fn new(
         start: u64,
         end: u64,
         bitmap_addr: u64,
         bitmap_size: u64,
     ) -> Self {
+        assert!(start < end);
+        assert!(super::is_page_aligned(start));
+        assert!(super::is_page_aligned(end));
+
+        assert!(bitmap_size > 0);
+        assert!(super::is_page_aligned(bitmap_addr));
+
         let bitmap = unsafe {
             Bitmap::new(bitmap_addr, bitmap_size)
         };
@@ -113,5 +124,33 @@ impl Bitmap {
         let bit = index % 64;
 
         self.bits[word as usize] &= !(1u64 << bit);
+    }
+}
+
+impl PhysicalMemoryManager {
+    pub fn new (
+        start: u64,
+        end: u64,
+        bitmap_addr: u64,
+        bitmap_size: u64,
+    ) -> Self {
+        let mut allocator = FrameAllocator::new(
+            start,
+            end,
+            bitmap_addr,
+            bitmap_size,
+        );
+
+        allocator.clear_all();
+
+        Self { allocator }
+    }
+
+    pub fn allocate_frame(&mut self) -> Option<Frame> {
+        self.allocator.allocate()
+    }
+
+    pub fn deallocate_frame(&mut self, frame: Frame) {
+        self.allocator.deallocate(frame);
     }
 }
