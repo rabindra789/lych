@@ -27,12 +27,14 @@ Lych is an open source project developed in India.
   - Usable RAM region computation
 - Physical frame abstraction
   - Frame iteration over usable RAM
-  - Frame allocation (bump allocator)
-  - Bitmap allocator design (sizing and reservation helpers)
+  - Bitmap-backed frame allocator
+    - Bitmap sizing and reservation
+    - Frame allocation
+    - Frame deallocation
+    - Frame reuse
 
 ## Roadmap
 
-- Bitmap-backed frame allocator
 - Additional synchronous exceptions
 - Interrupt handling (IRQ)
 - Generic timer
