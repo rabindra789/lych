@@ -48,8 +48,10 @@ pub fn usable_memory_start() -> u64 {
 }
 
 pub fn usable_memory_region() -> MemoryRegion {
+    let start = allocator::bitmap_end(bitmap_start(), frame_count());
+
     MemoryRegion {
-        start: usable_memory_start(),
+        start,
         end: crate::platform::RAM_END,
     }
 }
@@ -80,7 +82,7 @@ pub fn frame_from_address(addr: u64) -> Option<Frame> {
 }
 
 pub fn frame_count() -> u64 {
-    let region = usable_memory_region();
+    let region = raw_memory_region();
     (region.end - region.start) / PAGE_SIZE
 }
 
