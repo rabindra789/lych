@@ -20,6 +20,10 @@ pub struct PageRange {
     pub count: u64,
 }
 
+pub struct PageAllocator {
+    memory: PhysicalMemoryManager,
+}
+
 impl FrameAllocator {
     pub fn new(
         start: u64,
@@ -172,5 +176,52 @@ impl PageRange {
 
     pub fn contains(&self, addr: u64) -> bool {
         addr >= self.start && addr < self.end()
+    }
+}
+
+impl PageAllocator {
+    pub fn new(memory: PhysicalMemoryManager) -> Self {
+        Self { memory }
+    }
+
+    pub fn allocate(&mut self, count: u64) -> Option<PageRange> {
+        if count == 0 {
+            return None;
+        }
+
+        let first = self.memory.allocate_frame()?;
+
+        for offset in 1..count {
+            let frame = match self.memory.allocate_frame() {
+                Some(frame) => frame,
+                None => {
+                    self.free_run(first.start, offset);
+                    return None;
+                }
+            };
+
+            let expected = first.start + offset * PAGE_SIZE;
+
+            if frame.start != expected {
+                self.free_run(first.start, offset);
+                return None;
+            }
+        }
+
+        Some(PageRange::new(first.start, count))
+    }
+
+    fn free_run(&mut self, start: u64, count: u64) {
+        for offset in 0..count {
+            let frame = Frame {
+                start: start + offset * PAGE_SIZE,
+            };
+
+            self.memory.deallocate_frame(frame);
+        }
+    }
+
+    pub fn deallocate(&mut self, range: PageRange) {
+        self.free_run(range.start, range.count);
     }
 }
