@@ -14,6 +14,12 @@ pub struct Bitmap {
     bits: &'static mut [u64],
 }
 
+#[derive(Clone, Copy)]
+pub struct PageRange {
+    pub start: u64,
+    pub count: u64,
+}
+
 impl FrameAllocator {
     pub fn new(
         start: u64,
@@ -152,5 +158,19 @@ impl PhysicalMemoryManager {
 
     pub fn deallocate_frame(&mut self, frame: Frame) {
         self.allocator.deallocate(frame);
+    }
+}
+
+impl PageRange {
+    pub fn new(start: u64, count: u64) -> Self {
+        Self { start, count }
+    }
+
+    pub fn end(&self) -> u64 {
+        self.start + self.count * PAGE_SIZE
+    }
+
+    pub fn contains(&self, addr: u64) -> bool {
+        addr >= self.start && addr < self.end()
     }
 }
