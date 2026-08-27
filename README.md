@@ -8,6 +8,50 @@ The project focuses on understanding and building every major part of an operati
 
 Lych is an open source project developed in India.
 
+## Quick Start
+
+### Requirements
+
+- Rust
+- QEMU AArch64
+- `gdb-multiarch` for debugging
+
+### Build
+
+```bash
+./scripts/lych build
+```
+
+### Run
+
+```bash
+./scripts/lych run
+```
+
+Stop QEMU with `Ctrl+C`.
+
+### Debug
+
+Terminal 1:
+
+```bash
+./scripts/lych debug
+```
+
+Terminal 2:
+
+```bash
+./scripts/lych gdb
+```
+
+### Clean
+
+```bash
+./scripts/lych clean
+```
+
+All development flows go through `./scripts/lych` instead of raw `qemu-system-aarch64` / `gdb-multiarch` commands. When QEMU arguments, the CPU model, debug options, or kernel image location change, only the script needs updating and everyone's workflow stays consistent.
+
 ## Current
 
 - Boots on QEMU `virt`
@@ -35,13 +79,59 @@ Lych is an open source project developed in India.
 
 ## Roadmap
 
-- Additional synchronous exceptions
-- Interrupt handling (IRQ)
-- Generic timer
+### Phase 1 — Boot & Exceptions
+- Complete
+
+### Phase 2 — Memory
+- Kernel memory
+- Physical memory
 - MMU
-- Virtual memory
+- Heap
+
+### Phase 3 — Time & Interrupts
+- Generic timer
+- IRQ
+- Tick counter
+- Sleep
+
+### Phase 4 — Processes
+- CPU context
+- Context switching
 - Scheduler
-- Userspace
+- Idle task
+- Multiple kernel threads
+
+### Phase 5 — Virtual Memory
+- User address spaces
+- Page faults
+- Copy-on-write
+- Memory protection
+
+### Phase 6 — Userspace
+- EL0
+- System calls
+- Process loader
+- ELF loader
+- User applications
+
+### Phase 7 — Drivers
+- UART
+- Framebuffer
+- Keyboard
+- Storage
+- Filesystem
+
+### Phase 8 — Networking
+- Ethernet
+- TCP/IP
+- DHCP
+- Ping
+- HTTP
+
+### Phase 9 — Multiprocessor
+- Secondary cores
+- Spinlocks
+- SMP scheduler
 
 ## Targets
 
