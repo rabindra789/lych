@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+set -e
+
+PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$PROJECT"
+
+case "$1" in
+    build)
+        cargo build --release
+        ;;
+
+    run)
+        cargo build --release
+
+        exec qemu-system-aarch64 \
+            -M virt \
+            -cpu cortex-a72 \
+            -nographic \
+            -kernel target/aarch64-unknown-none/release/kernel
+        ;;
+
+    debug)
+        cargo build --release
+
+        exec qemu-system-aarch64 \
+            -M virt \
+            -cpu cortex-a72 \
+            -nographic \
+            -S \
+            -gdb tcp::1234 \
+            -kernel target/aarch64-unknown-none/release/kernel
+        ;;
+
+    gdb)
+        exec gdb-multiarch \
+            target/aarch64-unknown-none/release/kernel \
+            -ex "target remote :1234"
+        ;;
+
+    clean)
+        cargo clean
+        ;;
+
+    *)
+        echo "Usage:"
+        echo "  ./scripts/lych build"
+        echo "  ./scripts/lych run"
+        echo "  ./scripts/lych debug"
+        echo "  ./scripts/lych gdb"
+        echo "  ./scripts/lych clean"
+        exit 1
+        ;;
+esac
