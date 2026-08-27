@@ -1,4 +1,5 @@
 pub mod allocator;
+pub mod mmu;
 
 #[repr(C)]
 pub struct MemoryRegion {
