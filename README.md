@@ -1,4 +1,12 @@
-# Lych
+<p align="center">
+  <img src="assets/lych-logo.svg" alt="Lych OS Logo" width="100">
+</p>
+
+<h1 align="center">Lych</h1>
+
+<p align="center">
+  A clean, maintainable monolithic ARM64 operating system written in Rust.
+</p>
 
 [![CI](https://github.com/rabindra789/lych/actions/workflows/ci.yml/badge.svg)](https://github.com/rabindra789/lych/actions/workflows/ci.yml)
 
