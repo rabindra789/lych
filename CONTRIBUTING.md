@@ -1,44 +1,49 @@
 # Contributing
 
-## Requirements
+Thanks for your interest in contributing to Lych. This page describes how to set up a development environment, build the kernel, and run it under QEMU.
 
-- Rust toolchain (as pinned in `rust-toolchain.toml`)
-- `rust-src` component
-- `aarch64-unknown-none` target
+## Prerequisites
+
+- A stable Rust toolchain as pinned in `rust-toolchain.toml`
+- The `rust-src` component and the `aarch64-unknown-none` target
 - QEMU (`qemu-system-aarch64`)
-- GDB-multiarch
+- `gdb-multiarch`
 
-Install the Rust toolchain, `rust-src`, and the target with `rustup`:
+Install the Rust toolchain, `rust-src`, and the target:
 
 ```sh
 rustup component add rust-src
 rustup target add aarch64-unknown-none
 ```
 
-Install QEMU and GDB-multiarch with your package manager (e.g. `apt install qemu-system-arm gdb-multiarch`).
+Install QEMU and GDB with your system package manager:
 
-## Clone
+```sh
+apt install qemu-system-arm gdb-multiarch
+```
+
+## Getting the Source
 
 ```sh
 git clone https://github.com/rabindra789/lych.git
 cd lych
 ```
 
-## Build
+## Building
 
 ```sh
 ./scripts/lych build
 ```
 
-## Run
+## Running
 
 ```sh
 ./scripts/lych run
 ```
 
-To stop QEMU, press `Ctrl+C`. The script uses `exec`, so QEMU is the actual process attached to the terminal and `Ctrl+C` terminates it directly.
+QEMU attaches the serial console to the terminal. Stop it with `Ctrl+C` — the script `exec`s QEMU, so `Ctrl+C` stops the process directly.
 
-## Debug
+## Debugging
 
 In one terminal, start QEMU paused with a GDB stub:
 
@@ -51,3 +56,10 @@ In another terminal, attach GDB:
 ```sh
 ./scripts/lych gdb
 ```
+
+## Guidelines
+
+- Format code with `cargo fmt` before committing.
+- The kernel is `#![no_std]` and `#![no_main]`. Keep it dependency-free unless a dependency is unavoidable.
+- Restrict `unsafe` to the minimum required for the hardware access in question, and comment the safety justification.
+- Follow the phase structure in the README: subsystem changes should be scoped, self-contained, and documented.

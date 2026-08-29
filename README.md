@@ -5,7 +5,7 @@
 <h1 align="center">Lych</h1>
 
 <p align="center">
-  Lych is a monolithic operating system for ARM64, written in Rust from the ground up.
+  A monolithic ARM64 operating system written in Rust.
 </p>
 
 [![CI](https://github.com/rabindra789/lych/actions/workflows/ci.yml/badge.svg)](https://github.com/rabindra789/lych/actions/workflows/ci.yml)
@@ -13,80 +13,103 @@
 [![Rust](https://img.shields.io/badge/language-Rust-orange?logo=rust)](https://www.rust-lang.org/)
 [![Architecture](https://img.shields.io/badge/arch-ARM64-blue)](https://github.com/rabindra789/lych)
 
-The project focuses on understanding and building every major part of an operating system from first principles instead of treating it as a black box. Every subsystem is implemented step by step with an emphasis on simplicity, maintainability, and clear documentation.
+Lych is an open-source ARM64 operating system written in Rust. This repository contains the kernel, the platform bootstrap code, and the tooling and documentation needed to build, run, and debug the system.
 
-Lych is an open source project developed in India.
+The kernel is developed in self-contained subsystems — boot, exception handling, memory management, and, as development continues, timing, processes, userspace, and drivers. Each subsystem belongs to a documented phase and is kept small enough to follow and structured enough to extend.
 
-## Quick Start
+## Getting Started
 
-### Requirements
+### Prerequisites
 
-- Rust
-- QEMU AArch64
-- `gdb-multiarch` for debugging
+- A stable Rust toolchain (as pinned in `rust-toolchain.toml`), with the `rust-src` component and the `aarch64-unknown-none` target.
+- QEMU with an AArch64 system emulator (`qemu-system-aarch64`).
+- `gdb-multiarch` for debugging.
+
+Install the Rust prerequisites:
+
+```sh
+rustup component add rust-src
+rustup target add aarch64-unknown-none
+```
+
+Install QEMU and GDB through your system package manager, e.g.:
+
+```sh
+apt install qemu-system-arm gdb-multiarch
+```
 
 ### Build
 
-```bash
+```sh
 ./scripts/lych build
 ```
 
+This produces `target/aarch64-unknown-none/release/kernel`, a raw binary suitable for QEMU's `-kernel` option.
+
 ### Run
 
-```bash
+```sh
 ./scripts/lych run
 ```
 
-Stop QEMU with `Ctrl+C`.
+QEMU starts under the `virt` machine model with the CPU set to `cortex-a72`, and the serial console is connected to the terminal. Stop it with `Ctrl+C`.
 
 ### Debug
 
 Terminal 1:
 
-```bash
+```sh
 ./scripts/lych debug
 ```
 
 Terminal 2:
 
-```bash
+```sh
 ./scripts/lych gdb
 ```
 
+The first starts QEMU paused with a GDB stub on `tcp::1234`; the second attaches `gdb-multiarch` to it.
+
 ### Clean
 
-```bash
+```sh
 ./scripts/lych clean
 ```
 
-All development flows go through `./scripts/lych` instead of raw `qemu-system-aarch64` / `gdb-multiarch` commands. When QEMU arguments, the CPU model, debug options, or kernel image location change, only the script needs updating and everyone's workflow stays consistent.
+All development flows go through `./scripts/lych` instead of raw `qemu-system-aarch64` and `gdb-multiarch` invocations. QEMU arguments, the CPU model, and debug options are kept in one place so they change in only one file when the platform or workflow changes.
 
-## Current
+## Repository Layout
 
-- Boots on QEMU `virt`
+| Path                  | Purpose                                            |
+|-----------------------|----------------------------------------------------|
+| `arch/arm64/`         | Startup assembly and exception-entry stubs        |
+| `boot/`               | Kernel linker script                               |
+| `kernel/`             | The kernel crate (`no_std`, `no_main`)            |
+| `kernel/src/arch/`    | CPU and exception-handling primitives             |
+| `kernel/src/drivers/` | Device drivers (currently the PL011 UART)         |
+| `kernel/src/memory/`  | Memory management (frame allocator, MMU)          |
+| `scripts/`            | Build, run, and debug entry points                |
+| `docs/`               | Development notes                                  |
+
+## Current Status
+
+The kernel boots on QEMU `virt` and currently provides:
+
 - Rust kernel (`no_std`, `no_main`)
-- PL011 UART driver
-- Exception vector table (VBAR_EL1)
+- PL011 UART driver with early boot output
+- Exception vector table (`VBAR_EL1`)
 - Synchronous exception handling
-- Exception diagnostics
-  - `ESR_EL1`
-  - `ELR_EL1`
-  - `SPSR_EL1`
-  - Previous Exception Level
-- Exception return with `ERET`
+- Exception diagnostics: `ESR_EL1`, `ELR_EL1`, `SPSR_EL1`, previous exception level
+- Exception return via `ERET`
 - Resume execution after `BRK`
-- Kernel memory layout inspection
-  - `.text`, `.rodata`, `.data`, `.bss`, stack, RAM boundaries
-  - Usable RAM region computation
+- Kernel memory layout inspection (`.text`, `.rodata`, `.data`, `.bss`, stack, RAM)
+- Usable RAM region computation
 - Physical frame abstraction
-  - Frame iteration over usable RAM
-  - Bitmap-backed frame allocator
-    - Bitmap sizing and reservation
-    - Frame allocation
-    - Frame deallocation
-    - Frame reuse
+- Bitmap-backed frame allocator (allocation, deallocation, reuse)
 
 ## Roadmap
+
+Development is organized into phases. Each phase is implemented and documented before the next begins.
 
 ### Phase 1 — Boot & Exceptions
 - Complete
@@ -142,11 +165,11 @@ All development flows go through `./scripts/lych` instead of raw `qemu-system-aa
 - Spinlocks
 - SMP scheduler
 
-## Targets
+## Platforms
 
 Current:
 
-- QEMU `virt`
+- QEMU `virt` (arm64)
 
 Planned:
 
@@ -155,6 +178,10 @@ Planned:
 - ARM laptops
 - ARM phones
 
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, build, and debugging instructions. The roadmap above lists the areas currently in scope.
+
 ## License
 
-MIT
+Lych is released under the MIT License. See [LICENSE](LICENSE).
