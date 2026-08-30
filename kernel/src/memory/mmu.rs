@@ -32,6 +32,10 @@ impl PageTable {
     }
 }
 
+pub unsafe fn from_frame(frame: crate::memory::Frame) -> &'static mut PageTable {
+    &mut *(frame.start as *mut PageTable)
+}
+
 pub fn l0_index(va: u64) -> usize {
     ((va >> L0_SHIFT) & TABLE_INDEX_MASK) as usize
 }
@@ -62,7 +66,15 @@ pub fn page_descriptor(physical: u64) -> u64 {
 }
 
 pub fn table_descriptor(physical: u64) -> u64 {
-    (physical & 0x0000_FFFF_FFFF_F000)
-        | DESC_VALID
-        | DESC_TABLE
+    (physical & 0x0000_FFFF_FFFF_F000) | DESC_VALID | DESC_TABLE
+}
+
+pub fn table_entry(table: u64) -> u64 {
+    table_descriptor(table)
+}
+
+pub fn zero_table(table: &mut PageTable) {
+    for entry in table.entries.iter_mut() {
+        *entry = 0;
+    }
 }
