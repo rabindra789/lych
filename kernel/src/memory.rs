@@ -18,6 +18,12 @@ pub struct FrameRange {
     end: u64,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct PhysAddr(pub u64);
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct VirtAddr(pub u64);
+
 unsafe extern "C" {
     static __text_start: u8;
     static __text_end: u8;
@@ -36,6 +42,26 @@ unsafe extern "C" {
 
 fn addr(symbol: &u8) -> u64 {
     symbol as *const u8 as u64
+}
+
+impl PhysAddr {
+    pub const fn new(addr: u64) -> Self {
+        Self(addr)
+    }
+
+    pub const fn as_u64(self) -> u64 {
+        self.0
+    }
+}
+
+impl VirtAddr {
+    pub const fn new(addr: u64) -> Self {
+        Self(addr)
+    }
+
+    pub const fn as_u64(self) -> u64 {
+        self.0
+    }
 }
 
 pub const PAGE_SIZE: u64 = 4096;
@@ -182,4 +208,12 @@ pub fn print_layout() {
         uart::put_hex(is_page_aligned(usable.start) as u64);
         uart::putc(b'\n');
     }
+}
+
+pub fn phys_to_virt(addr: PhysAddr) -> VirtAddr {
+    VirtAddr::new(addr.as_u64())
+}
+
+pub fn virt_to_phys(addr: VirtAddr) -> PhysAddr {
+    PhysAddr::new(addr.as_u64())
 }

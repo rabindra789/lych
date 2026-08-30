@@ -90,9 +90,14 @@ pub fn bitmap_end(start: u64, frame_count: u64) -> u64 {
 
 impl Bitmap {
     pub unsafe fn new(addr: u64, size: u64) -> Self {
+        let physical = super::PhysAddr::new(addr);
+        let virtual_address = super::phys_to_virt(physical);
+
         let words = size / core::mem::size_of::<u64>() as u64;
 
-        let bits = unsafe { core::slice::from_raw_parts_mut(addr as *mut u64, words as usize) };
+        let bits = unsafe {
+            core::slice::from_raw_parts_mut(virtual_address.as_u64() as *mut u64, words as usize)
+        };
 
         Self { bits }
     }

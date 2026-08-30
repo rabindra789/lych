@@ -33,7 +33,10 @@ impl PageTable {
 }
 
 pub unsafe fn from_frame(frame: crate::memory::Frame) -> &'static mut PageTable {
-    &mut *(frame.start as *mut PageTable)
+    let physical = crate::memory::PhysAddr::new(frame.start);
+    let virtual_address = crate::memory::phys_to_virt(physical);
+
+    &mut *(virtual_address.as_u64() as *mut PageTable)
 }
 
 pub fn l0_index(va: u64) -> usize {
