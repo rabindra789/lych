@@ -6,10 +6,10 @@ mod drivers;
 mod memory;
 mod platform;
 
-use core::panic::PanicInfo;
 use drivers::uart;
+use core::panic::PanicInfo;
 
-use crate::{arch::exception::ExceptionFrame, memory::mmu::table_entry};
+use crate::arch::exception::ExceptionFrame;
 
 /// First Rust func to executed by the kernel
 #[unsafe(no_mangle)]
@@ -29,7 +29,7 @@ pub extern "C" fn kernel_main() -> ! {
     unsafe {
         core::arch::asm!("brk #0");
     }
-
+    
     memory::print_layout();
 
     loop {
@@ -67,16 +67,18 @@ pub extern "C" fn exception_handler(frame: &mut ExceptionFrame) {
     uart::puts("SPSR_EL1  : ");
     uart::put_hex(frame.spsr);
     uart::putc(b'\n');
-
+    
     let previous_el = arch::exception::previous_exception_level(frame.spsr);
 
     uart::puts("Previous EL: ");
     uart::puts(arch::exception::exception_level_name(previous_el));
     uart::putc(b'\n');
 
+    
     if ec == arch::exception::EC_BREAKPOINT {
         // Skip over the BRK instruction when returning.
         // ARM64 instructions are fixed-width (4 bytes).
         frame.elr += 4;
     }
+
 }

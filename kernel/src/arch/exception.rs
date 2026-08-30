@@ -11,6 +11,7 @@ pub fn exception_name(ec: u8) -> &'static str {
     }
 }
 
+
 #[repr(C)]
 pub struct ExceptionFrame {
     /// Exception Syndrome Register

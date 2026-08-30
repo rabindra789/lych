@@ -2,7 +2,7 @@
 
 set -e
 
-PROJECT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+PROJECT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT"
 
 case "$1" in
@@ -42,14 +42,6 @@ case "$1" in
         cargo clean
         ;;
 
-    fmt)
-        cargo fmt --all
-        ;;
-
-    fmt-check)
-        cargo fmt --all --check
-        ;;
-
     *)
         echo "Usage:"
         echo "  ./scripts/lych build"
@@ -57,8 +49,6 @@ case "$1" in
         echo "  ./scripts/lych debug"
         echo "  ./scripts/lych gdb"
         echo "  ./scripts/lych clean"
-        echo "  ./scripts/lych fmt"
-        echo "  ./scripts/lych fmt-check"
         exit 1
         ;;
 esac

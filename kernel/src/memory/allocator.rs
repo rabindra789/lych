@@ -25,7 +25,12 @@ pub struct PageAllocator {
 }
 
 impl FrameAllocator {
-    pub fn new(start: u64, end: u64, bitmap_addr: u64, bitmap_size: u64) -> Self {
+    pub fn new(
+        start: u64,
+        end: u64,
+        bitmap_addr: u64,
+        bitmap_size: u64,
+    ) -> Self {
         assert!(start < end);
         assert!(super::is_page_aligned(start));
         assert!(super::is_page_aligned(end));
@@ -33,9 +38,15 @@ impl FrameAllocator {
         assert!(bitmap_size > 0);
         assert!(super::is_page_aligned(bitmap_addr));
 
-        let bitmap = unsafe { Bitmap::new(bitmap_addr, bitmap_size) };
+        let bitmap = unsafe {
+            Bitmap::new(bitmap_addr, bitmap_size)
+        };
 
-        Self { start, end, bitmap }
+        Self {
+            start,
+            end,
+            bitmap,
+        }
     }
 
     pub fn clear_all(&mut self) {
@@ -69,10 +80,6 @@ impl FrameAllocator {
 
         let index = (frame.start - self.start) / PAGE_SIZE;
 
-        if !self.bitmap.is_set(index) {
-            return;
-        }
-
         self.bitmap.clear(index);
     }
 }
@@ -92,7 +99,12 @@ impl Bitmap {
     pub unsafe fn new(addr: u64, size: u64) -> Self {
         let words = size / core::mem::size_of::<u64>() as u64;
 
-        let bits = unsafe { core::slice::from_raw_parts_mut(addr as *mut u64, words as usize) };
+        let bits = unsafe {
+            core::slice::from_raw_parts_mut(
+                addr as *mut u64,
+                words as usize,
+            )
+        };
 
         Self { bits }
     }
@@ -126,8 +138,18 @@ impl Bitmap {
 }
 
 impl PhysicalMemoryManager {
-    pub fn new(start: u64, end: u64, bitmap_addr: u64, bitmap_size: u64) -> Self {
-        let mut allocator = FrameAllocator::new(start, end, bitmap_addr, bitmap_size);
+    pub fn new (
+        start: u64,
+        end: u64,
+        bitmap_addr: u64,
+        bitmap_size: u64,
+    ) -> Self {
+        let mut allocator = FrameAllocator::new(
+            start,
+            end,
+            bitmap_addr,
+            bitmap_size,
+        );
 
         allocator.clear_all();
 
@@ -167,38 +189,26 @@ impl PageAllocator {
             return None;
         }
 
-        let frame_count = (self.memory.allocator.end - self.memory.allocator.start) / PAGE_SIZE;
+        let first = self.memory.allocate_frame()?;
 
-        if count > frame_count {
-            return None;
-        }
-
-        let mut run_start = 0;
-        let mut run_length = 0;
-
-        for index in 0..frame_count {
-            if !self.memory.allocator.bitmap.is_set(index) {
-                if run_length == 0 {
-                    run_start = index;
+        for offset in 1..count {
+            let frame = match self.memory.allocate_frame() {
+                Some(frame) => frame,
+                None => {
+                    self.free_run(first.start, offset);
+                    return None;
                 }
+            };
 
-                run_length += 1;
+            let expected = first.start + offset * PAGE_SIZE;
 
-                if run_length ==count {
-                    for offset in 0..count {
-                        self.memory.allocator.bitmap.set(run_start + offset);
-                    }
-
-                    let start = self.memory.allocator.start + run_start * PAGE_SIZE;
-
-                    return Some(PageRange::new(start, count));
-                }
-            } else {
-                run_length = 0;
+            if frame.start != expected {
+                self.free_run(first.start, offset);
+                return None;
             }
         }
 
-        None
+        Some(PageRange::new(first.start, count))
     }
 
     fn free_run(&mut self, start: u64, count: u64) {
