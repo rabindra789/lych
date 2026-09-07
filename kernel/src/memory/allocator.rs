@@ -1,3 +1,5 @@
+// Frame and page allocation paths are wired in with the page-table/MMU steps.
+#![allow(dead_code)]
 use super::{Frame, PAGE_SIZE};
 
 pub struct PhysicalMemoryManager {
@@ -50,7 +52,7 @@ impl FrameAllocator {
                 self.bitmap.set(index);
 
                 return Some(Frame {
-                    start: self.start + index * PAGE_SIZE,
+                    start: super::PhysAddr::new(self.start + index * PAGE_SIZE),
                 });
             }
         }
@@ -59,15 +61,17 @@ impl FrameAllocator {
     }
 
     pub fn deallocate(&mut self, frame: Frame) {
-        if frame.start < self.start || frame.start >= self.end {
+        let frame_start = frame.start.as_u64();
+
+        if frame_start < self.start || frame_start >= self.end {
             return;
         }
 
-        if !super::is_page_aligned(frame.start) {
+        if !super::is_page_aligned(frame_start) {
             return;
         }
 
-        let index = (frame.start - self.start) / PAGE_SIZE;
+        let index = (frame_start - self.start) / PAGE_SIZE;
 
         if !self.bitmap.is_set(index) {
             return;
@@ -209,7 +213,7 @@ impl PageAllocator {
     fn free_run(&mut self, start: u64, count: u64) {
         for offset in 0..count {
             let frame = Frame {
-                start: start + offset * PAGE_SIZE,
+                start: super::PhysAddr::new(start + offset * PAGE_SIZE),
             };
 
             self.memory.deallocate_frame(frame);

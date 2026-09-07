@@ -9,7 +9,7 @@ mod platform;
 use core::panic::PanicInfo;
 use drivers::uart;
 
-use crate::{arch::exception::ExceptionFrame, memory::mmu::table_entry};
+use crate::arch::exception::ExceptionFrame;
 
 /// First Rust func to executed by the kernel
 #[unsafe(no_mangle)]
@@ -30,6 +30,7 @@ pub extern "C" fn kernel_main() -> ! {
         core::arch::asm!("brk #0");
     }
 
+    memory::init();
     memory::print_layout();
 
     loop {

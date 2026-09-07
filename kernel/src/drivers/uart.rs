@@ -22,6 +22,7 @@ pub fn puts(s: &str) {
     }
 }
 
+#[allow(dead_code)] // Unused until callers need single-digit output.
 pub fn put_digit(digit: u8) {
     putc(b'0' + digit)
 }

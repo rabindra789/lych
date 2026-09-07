@@ -1,6 +1,8 @@
 pub mod allocator;
 pub mod mmu;
 
+use allocator::PhysicalMemoryManager;
+
 #[repr(C)]
 pub struct MemoryRegion {
     pub start: u64,
@@ -9,16 +11,18 @@ pub struct MemoryRegion {
 
 #[repr(C)]
 #[derive(Clone, Copy)]
+#[allow(dead_code)] // Used by frame-management and page-table interfaces.
 pub struct Frame {
-    pub start: u64,
+    pub start: PhysAddr,
 }
 
+#[allow(dead_code)] // Used by memory scanning once frame enumeration is wired in.
 pub struct FrameRange {
     current: u64,
     end: u64,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct PhysAddr(pub u64);
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -94,6 +98,7 @@ pub fn is_page_aligned(addr: u64) -> bool {
     addr % PAGE_SIZE == 0
 }
 
+#[allow(dead_code)] // Used by physical-frame lookup helpers.
 pub fn frame_from_address(addr: u64) -> Option<Frame> {
     if !is_page_aligned(addr) {
         return None;
@@ -105,7 +110,9 @@ pub fn frame_from_address(addr: u64) -> Option<Frame> {
         return None;
     }
 
-    Some(Frame { start: addr })
+    Some(Frame {
+        start: PhysAddr::new(addr),
+    })
 }
 
 pub fn frame_count() -> u64 {
@@ -113,6 +120,7 @@ pub fn frame_count() -> u64 {
     (region.end - region.start) / PAGE_SIZE
 }
 
+#[allow(dead_code)] // Used by memory scanning once frame enumeration is wired in.
 impl FrameRange {
     pub fn new(region: MemoryRegion) -> Self {
         debug_assert!(region.start % PAGE_SIZE == 0);
@@ -135,7 +143,7 @@ impl Iterator for FrameRange {
         }
 
         let frame = Frame {
-            start: self.current,
+            start: PhysAddr::new(self.current),
         };
 
         self.current += PAGE_SIZE;
@@ -144,6 +152,7 @@ impl Iterator for FrameRange {
     }
 }
 
+#[allow(dead_code)] // Used when boot code needs to iterate all usable frames.
 pub fn usable_frames() -> FrameRange {
     FrameRange::new(usable_memory_region())
 }
@@ -154,6 +163,35 @@ pub fn bitmap_start() -> u64 {
 
 pub fn bitmap_size() -> u64 {
     allocator::bitmap_size(frame_count())
+}
+
+static mut PHYSICAL_MEMORY: Option<PhysicalMemoryManager> = None;
+
+/// Initialize the physical frame allocator over the usable memory region.
+///
+/// The bitmap itself lives just below the allocatable region and is excluded
+/// from the allocator's range, so it can never be handed out as a frame.
+pub fn init() {
+    let region = usable_memory_region();
+
+    let manager =
+        PhysicalMemoryManager::new(region.start, region.end, bitmap_start(), bitmap_size());
+
+    unsafe {
+        PHYSICAL_MEMORY = Some(manager);
+    }
+}
+
+#[allow(dead_code)] // Used by page-table and allocation callers.
+pub fn with_physical_memory<R>(f: impl FnOnce(&mut PhysicalMemoryManager) -> R) -> R {
+    unsafe {
+        let slot = core::ptr::addr_of_mut!(PHYSICAL_MEMORY);
+
+        match (*slot).as_mut() {
+            Some(manager) => f(manager),
+            None => panic!("physical memory manager not initialized"),
+        }
+    }
 }
 
 pub fn print_layout() {
@@ -214,6 +252,7 @@ pub fn phys_to_virt(addr: PhysAddr) -> VirtAddr {
     VirtAddr::new(addr.as_u64())
 }
 
+#[allow(dead_code)] // Used once descriptors need phys addresses from virt addresses.
 pub fn virt_to_phys(addr: VirtAddr) -> PhysAddr {
     PhysAddr::new(addr.as_u64())
 }
