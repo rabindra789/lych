@@ -1,8 +1,6 @@
 // Wired in once AArch64 MMU translation is enabled.
 #![allow(dead_code)]
 
-use crate::memory;
-
 pub const PAGE_SIZE: u64 = 4096;
 pub const ENTRY_COUNT: usize = 512;
 pub const L0_SHIFT: u64 = 39;
@@ -29,11 +27,76 @@ pub struct PageTable {
     pub entries: [u64; ENTRY_COUNT],
 }
 
+pub struct PageTableHierarchy {
+    pub l0: crate::memory::Frame,
+    pub l1: crate::memory::Frame,
+    pub l2: crate::memory::Frame,
+    pub l3: crate::memory::Frame,
+}
+
 impl PageTable {
     pub const fn new() -> Self {
         Self {
             entries: [0; ENTRY_COUNT],
         }
+    }
+}
+
+impl PageTableHierarchy {
+    pub fn new() -> Option<Self> {
+        let l0 = crate::memory::with_physical_memory(|memory| {
+            memory.allocate_frame()
+        })?;
+
+        let l1 = match crate::memory::with_physical_memory(|memory| {
+            memory.allocate_frame()
+        }) {
+            Some(frame) => frame,
+            None => {
+                crate::memory::with_physical_memory(|memory| {
+                    memory.deallocate_frame(l0);
+                });
+                return None;
+            }
+        };
+
+        let l2 = match crate::memory::with_physical_memory(|memory| {
+            memory.allocate_frame()
+        }) {
+            Some(frame) => frame,
+            None => {
+                crate::memory::with_physical_memory(|memory| {
+                    memory.deallocate_frame(l1);
+                    memory.deallocate_frame(l0);
+                });
+                return None;
+            }
+        };
+
+        let l3 = match crate::memory::with_physical_memory(|memory| {
+            memory.allocate_frame()
+        }) {
+            Some(frame) => frame,
+            None => {
+                crate::memory::with_physical_memory(|memory| {
+                    memory.deallocate_frame(l2);
+                    memory.deallocate_frame(l1);
+                    memory.deallocate_frame(l0);
+                });
+                return None;
+            }
+        };
+
+        Some(Self {l0, l1, l2, l3})
+    }
+}
+
+impl PageTableHierarchy {
+    pub fn zero(&self) {
+        with_page_table(self.l0, zero_table);
+        with_page_table(self.l1, zero_table);
+        with_page_table(self.l2, zero_table);
+        with_page_table(self.l3, zero_table);
     }
 }
 
