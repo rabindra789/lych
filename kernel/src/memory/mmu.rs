@@ -1,6 +1,8 @@
 // Wired in once AArch64 MMU translation is enabled.
 #![allow(dead_code)]
 
+use crate::memory;
+
 pub const PAGE_SIZE: u64 = 4096;
 pub const ENTRY_COUNT: usize = 512;
 pub const L0_SHIFT: u64 = 39;
@@ -35,10 +37,12 @@ impl PageTable {
     }
 }
 
-pub unsafe fn from_frame(frame: crate::memory::Frame) -> &'static mut PageTable {
+pub fn with_page_table<R>(frame: crate::memory::Frame, f: impl FnOnce(&mut PageTable) -> R) -> R {
     let virtual_address = crate::memory::phys_to_virt(frame.start);
 
-    unsafe { &mut *(virtual_address.as_u64() as *mut PageTable) }
+    let table = unsafe { &mut *(virtual_address.as_u64() as *mut PageTable) };
+
+    f(table)
 }
 
 pub fn l0_index(va: u64) -> usize {
@@ -82,4 +86,8 @@ pub fn zero_table(table: &mut PageTable) {
     for entry in table.entries.iter_mut() {
         *entry = 0;
     }
+}
+
+pub fn allocate_page_table_frame() -> Option<crate::memory::Frame> {
+    crate::memory::with_physical_memory(|memory| memory.allocate_frame())
 }
