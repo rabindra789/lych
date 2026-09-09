@@ -44,13 +44,9 @@ impl PageTable {
 
 impl PageTableHierarchy {
     pub fn new() -> Option<Self> {
-        let l0 = crate::memory::with_physical_memory(|memory| {
-            memory.allocate_frame()
-        })?;
+        let l0 = crate::memory::with_physical_memory(|memory| memory.allocate_frame())?;
 
-        let l1 = match crate::memory::with_physical_memory(|memory| {
-            memory.allocate_frame()
-        }) {
+        let l1 = match crate::memory::with_physical_memory(|memory| memory.allocate_frame()) {
             Some(frame) => frame,
             None => {
                 crate::memory::with_physical_memory(|memory| {
@@ -60,9 +56,7 @@ impl PageTableHierarchy {
             }
         };
 
-        let l2 = match crate::memory::with_physical_memory(|memory| {
-            memory.allocate_frame()
-        }) {
+        let l2 = match crate::memory::with_physical_memory(|memory| memory.allocate_frame()) {
             Some(frame) => frame,
             None => {
                 crate::memory::with_physical_memory(|memory| {
@@ -73,9 +67,7 @@ impl PageTableHierarchy {
             }
         };
 
-        let l3 = match crate::memory::with_physical_memory(|memory| {
-            memory.allocate_frame()
-        }) {
+        let l3 = match crate::memory::with_physical_memory(|memory| memory.allocate_frame()) {
             Some(frame) => frame,
             None => {
                 crate::memory::with_physical_memory(|memory| {
@@ -87,7 +79,19 @@ impl PageTableHierarchy {
             }
         };
 
-        Some(Self {l0, l1, l2, l3})
+        Some(Self { l0, l1, l2, l3 })
+    }
+
+    pub fn link_tables(&self) {
+        with_page_table(self.l0, |table| {
+            table.entries[0] = table_descriptor(self.l1.start.as_u64());
+        });
+        with_page_table(self.l1, |table| {
+            table.entries[1] = table_descriptor(self.l2.start.as_u64());
+        });
+        with_page_table(self.l2, |table| {
+            table.entries[0] = table_descriptor(self.l3.start.as_u64());
+        });
     }
 }
 
