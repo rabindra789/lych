@@ -1,5 +1,10 @@
 use core::arch::asm;
 
+pub const MAIR_ATTR_DEVICE_NGNRE: u64 = 0x04;
+pub const MAIR_ATTR_NORMAL_WBWA: u64 = 0xFF;
+
+pub const MAIR_EL1_VALUE: u64 = MAIR_ATTR_DEVICE_NGNRE | (MAIR_ATTR_NORMAL_WBWA << 8); 
+
 unsafe extern "C" {
     fn exception_vectors_init();
 }
@@ -42,8 +47,20 @@ pub fn enable_fp_simd() {
     }
 }
 
+/// Configure the memory attributes used by the translation tables.
+pub fn configure_mair() {
+    unsafe {
+        asm!(
+            "msr MAIR_EL1, {value}",
+            "isb",
+            value = in (reg) MAIR_EL1_VALUE,
+        );
+    }
+}
+
 pub fn init() {
     enable_fp_simd();
+    configure_mair();
 
     unsafe {
         exception_vectors_init();
