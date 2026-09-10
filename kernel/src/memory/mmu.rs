@@ -32,6 +32,7 @@ pub struct PageTableHierarchy {
     pub l1: crate::memory::Frame,
     pub l2: crate::memory::Frame,
     pub l3: crate::memory::Frame,
+    pub uart_l2: crate::memory::Frame,
 }
 
 impl PageTable {
@@ -79,18 +80,53 @@ impl PageTableHierarchy {
             }
         };
 
-        Some(Self { l0, l1, l2, l3 })
+        fn allocate_frame() -> Option<crate::memory::Frame> {
+            crate::memory::with_physical_memory(|memory| memory.allocate_frame())
+        }
+
+        let uart_l2 = match allocate_frame() {
+            Some(frame) => frame,
+            None => {
+                crate::memory::with_physical_memory(|memory| {
+                    memory.deallocate_frame(l3);
+                    memory.deallocate_frame(l2);
+                    memory.deallocate_frame(l1);
+                    memory.deallocate_frame(l0);
+                });
+                return None;
+            }
+        };
+
+        Some(Self {
+            l0,
+            l1,
+            l2,
+            l3,
+            uart_l2,
+        })
     }
 
     pub fn link_tables(&self) {
         with_page_table(self.l0, |table| {
             table.entries[0] = table_descriptor(self.l1.start.as_u64());
         });
+
         with_page_table(self.l1, |table| {
             table.entries[1] = table_descriptor(self.l2.start.as_u64());
+            table.entries[0] = table_descriptor(self.uart_l2.start.as_u64());
         });
+
         with_page_table(self.l2, |table| {
-            table.entries[0] = table_descriptor(self.l3.start.as_u64());
+            for index in 0..64 {
+                let physical = 0x4000_0000 + (index as u64 * 0x20_0000);
+
+                table.entries[index] =
+                    block_descriptor(physical, ATTR_NORMAL | AP_RO_EL1 | SH_INNER | ACCESS_FLAG);
+            }
+        });
+
+        with_page_table(self.uart_l2, |table| {
+            table.entries[72] = block_descriptor(0x0900_0000, ATTR_DEVICE | ACCESS_FLAG);
         });
     }
 }
@@ -101,6 +137,7 @@ impl PageTableHierarchy {
         with_page_table(self.l1, zero_table);
         with_page_table(self.l2, zero_table);
         with_page_table(self.l3, zero_table);
+        with_page_table(self.uart_l2, zero_table);
     }
 }
 
@@ -157,4 +194,8 @@ pub fn zero_table(table: &mut PageTable) {
 
 pub fn allocate_page_table_frame() -> Option<crate::memory::Frame> {
     crate::memory::with_physical_memory(|memory| memory.allocate_frame())
+}
+
+pub fn block_descriptor(physical: u64, attributes: u64) -> u64 {
+    (physical & 0x0000_FFFF_FFE0_0000) | DESC_VALID | attributes
 }

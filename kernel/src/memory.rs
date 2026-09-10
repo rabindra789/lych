@@ -256,3 +256,53 @@ pub fn phys_to_virt(addr: PhysAddr) -> VirtAddr {
 pub fn virt_to_phys(addr: VirtAddr) -> PhysAddr {
     PhysAddr::new(addr.as_u64())
 }
+
+pub fn test_page_table_mappings() {
+    let hierarchy =
+        mmu::PageTableHierarchy::new().expect("failed to allocate page-table hierarchy");
+
+    hierarchy.zero();
+    hierarchy.link_tables();
+
+    // Verify RAM identity mapping.
+    mmu::with_page_table(hierarchy.l2, |table| {
+        for index in 0..64 {
+            let expected_physical = 0x4000_0000 + (index as u64 * 0x20_0000);
+
+            let entry = table.entries[index];
+
+            assert_eq!(entry & mmu::DESC_VALID, mmu::DESC_VALID);
+            assert_eq!(entry & mmu::DESC_TABLE, 0);
+
+            let physical = entry & 0x0000_FFFF_FFE0_0000;
+
+            assert_eq!(physical, expected_physical);
+        }
+
+        // Everything after the 64 RAM blocks must remain unused.
+        for index in 64..mmu::ENTRY_COUNT {
+            assert_eq!(table.entries[index], 0);
+        }
+    });
+
+    // Verify UART mapping.
+    mmu::with_page_table(hierarchy.uart_l2, |table| {
+        let entry = table.entries[72];
+
+        assert_eq!(entry & mmu::DESC_VALID, mmu::DESC_VALID);
+        assert_eq!(entry & mmu::DESC_TABLE, 0);
+
+        let physical = entry & 0x0000_FFFF_FFE0_0000;
+
+        assert_eq!(physical, 0x0900_0000);
+
+        // No unexpected UART mappings.
+        for index in 0..mmu::ENTRY_COUNT {
+            if index != 72 {
+                assert_eq!(table.entries[index], 0);
+            }
+        }
+    });
+
+    crate::drivers::uart::puts("Identity mappings validated successfully\n");
+}

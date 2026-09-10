@@ -1,4 +1,4 @@
-const UART0_BASE: usize = 0x0900_0000;
+pub const UART0_BASE: usize = 0x0900_0000;
 
 const UART_DR: *mut u32 = UART0_BASE as *mut u32;
 const UART_FR: *const u32 = (UART0_BASE + 0x18) as *const u32;

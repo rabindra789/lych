@@ -22,15 +22,14 @@ pub extern "C" fn kernel_main() -> ! {
     uart::put_hex(el);
     uart::putc(b'\n');
 
-    unsafe {
-        arch::cpu::init_exception();
-    }
+    arch::cpu::init();
 
     unsafe {
         core::arch::asm!("brk #0");
     }
 
     memory::init();
+    memory::test_page_table_mappings();
     memory::print_layout();
 
     loop {
@@ -74,6 +73,39 @@ pub extern "C" fn exception_handler(frame: &mut ExceptionFrame) {
     uart::puts("Previous EL: ");
     uart::puts(arch::exception::exception_level_name(previous_el));
     uart::putc(b'\n');
+
+    match ec {
+        arch::exception::EC_INSTRUCTION_ABORT_LOWER_EL
+        | arch::exception::EC_INSTRUCTION_ABORT_SAME_EL => {
+            uart::puts("FAR_EL1   : ");
+            uart::put_hex(arch::cpu::read_far_el1());
+            uart::putc(b'\n');
+
+            uart::puts("IFSC      : ");
+            uart::put_hex(frame.esr & 0x3f);
+            uart::putc(b'\n');
+
+            uart::puts("Fault     : ");
+            uart::puts(arch::exception::fault_status_name(frame.esr));
+            uart::putc(b'\n');
+        }
+
+        arch::exception::EC_DATA_ABORT_LOWER_EL | arch::exception::EC_DATA_ABORT_SAME_EL => {
+            uart::puts("FAR_EL1   : ");
+            uart::put_hex(arch::cpu::read_far_el1());
+            uart::putc(b'\n');
+
+            uart::puts("DFSC      : ");
+            uart::put_hex(frame.esr & 0x3f);
+            uart::putc(b'\n');
+
+            uart::puts("Fault     : ");
+            uart::puts(arch::exception::fault_status_name(frame.esr));
+            uart::putc(b'\n');
+        }
+
+        _ => {}
+    }
 
     if ec == arch::exception::EC_BREAKPOINT {
         // Skip over the BRK instruction when returning.
