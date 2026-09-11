@@ -38,6 +38,8 @@ Install QEMU and GDB through your system package manager, e.g.:
 apt install qemu-system-arm gdb-multiarch
 ```
 
+> **Windows:** run the same commands from Git Bash using `./scripts/lych`, or from PowerShell using `.\scripts\lych.ps1`. The two scripts are equivalent.
+
 ### Build
 
 ```sh
@@ -76,7 +78,7 @@ The first starts QEMU paused with a GDB stub on `tcp::1234`; the second attaches
 ./scripts/lych clean
 ```
 
-All development flows go through `./scripts/lych` instead of raw `qemu-system-aarch64` and `gdb-multiarch` invocations. QEMU arguments, the CPU model, and debug options are kept in one place so they change in only one file when the platform or workflow changes.
+All development flows go through the `scripts/` entry points — `./scripts/lych` (Git Bash, Linux, macOS) or `.\scripts\lych.ps1` (Windows PowerShell) — instead of raw `qemu-system-aarch64` and `gdb-multiarch` invocations. QEMU arguments, the CPU model, and debug options are kept in one place so they change in only one file when the platform or workflow changes.
 
 ## Repository Layout
 
