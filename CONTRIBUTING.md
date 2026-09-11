@@ -22,6 +22,8 @@ Install QEMU and GDB with your system package manager:
 apt install qemu-system-arm gdb-multiarch
 ```
 
+> **Windows:** use Git Bash and the `./scripts/lych` commands below, or PowerShell with `.\scripts\lych.ps1` instead. The two scripts expose the same commands.
+
 ## Getting the Source
 
 ```sh
