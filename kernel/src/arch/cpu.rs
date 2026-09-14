@@ -23,6 +23,7 @@ pub fn current_el() -> u64 {
     el >> 2
 }
 
+#[allow(dead_code)] // Debugging primitive.
 // Read the translation control register for EL1.
 pub fn read_tcr_el1() -> u64 {
     let tcr: u64;
@@ -46,6 +47,21 @@ pub fn read_far_el1() -> u64 {
     }
 
     far
+}
+
+#[allow(dead_code)] // Debugging primitive.
+/// Read the current EL1 System Control Register
+pub fn read_sctlr_el1() -> u64 {
+    let sctlr: u64;
+
+    unsafe {
+        asm!(
+            "mrs {value}, SCTLR_EL1",
+            value = out(reg) sctlr,
+        );
+    }
+
+    sctlr
 }
 
 /// Enable FP and SIMD at EL1 by setting CPACR_EL1.FPEN = 0b11.
@@ -98,6 +114,28 @@ pub fn set_ttbr0_el1(physical_address: u64) {
             "dsb ish",
             "isb",
             value = in(reg) physical_address,
+        );
+    }
+}
+
+/// Enable the EL1 stage-1 MMU.
+pub fn enable_mmu() {
+    unsafe {
+        let mut sctlr: u64;
+
+        asm!(
+            "mrs {sctlr}, SCTLR_EL1",
+            sctlr = out(reg) sctlr,
+        );
+
+        // SCTLR_EL1.M = 1: enable stage-1 MMU
+        sctlr |= 1 << 0;
+
+        asm!(
+            "dsb ish",
+            "msr SCTLR_EL1, {sctlr}",
+            "isb",
+            sctlr = in(reg) sctlr,
         );
     }
 }
