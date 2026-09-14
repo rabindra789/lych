@@ -272,6 +272,8 @@ pub fn test_page_table_mappings() {
 
                 assert_eq!(entry & mmu::DESC_TABLE, 0);
 
+                assert_eq!(entry & 0xC0, mmu::AP_RW_EL1);
+
                 let physical = entry & 0x0000_FFFF_FFE0_0000;
 
                 assert_eq!(physical, expected_physical);

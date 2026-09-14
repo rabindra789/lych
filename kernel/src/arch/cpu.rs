@@ -23,6 +23,17 @@ pub fn current_el() -> u64 {
     el >> 2
 }
 
+// Read the translation control register for EL1.
+pub fn read_tcr_el1() -> u64 {
+    let tcr: u64;
+
+    unsafe {
+        asm!("mrs {}, TCR_EL1", out(reg) tcr);
+    }
+
+    tcr
+}
+
 // Read the fault Address Register for EL1
 pub fn read_far_el1() -> u64 {
     let far: u64;
@@ -58,6 +69,27 @@ pub fn configure_mair() {
     }
 }
 
+/// Configure the EL1 stage-1 translation control register (TCR_EL1).
+pub fn configure_tcr() {
+    const TCR_T0SZ: u64 = 16; // 48-bit virtual address space
+    const TCR_IRGN0_WBWA: u64 = 1 << 8; // Write-back write-allocate cacheable
+    const TCR_ORGN0_WBWA: u64 = 1 << 10; // Write-back write-allocate cacheable
+    const TCR_SH0_INNER: u64 = 3 << 12; // Inner shareable
+    const TCR_TG0_4K: u64 = 0 << 14; // 4KB granule
+    const TCR_IPS_40BIT: u64 = 2 << 32; // 40-bit physical address space
+
+    let tcr =
+        TCR_T0SZ | TCR_IRGN0_WBWA | TCR_ORGN0_WBWA | TCR_SH0_INNER | TCR_TG0_4K | TCR_IPS_40BIT;
+
+    unsafe {
+        asm!(
+            "msr TCR_EL1, {value}",
+            "isb",
+            value = in(reg) tcr,
+        );
+    }
+}
+
 /// Set the EL1 translation table base register.
 pub fn set_ttbr0_el1(physical_address: u64) {
     unsafe {
@@ -73,6 +105,7 @@ pub fn set_ttbr0_el1(physical_address: u64) {
 pub fn init() {
     enable_fp_simd();
     configure_mair();
+    configure_tcr();
 
     unsafe {
         exception_vectors_init();

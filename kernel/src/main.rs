@@ -22,7 +22,15 @@ pub extern "C" fn kernel_main() -> ! {
     uart::put_hex(el);
     uart::putc(b'\n');
 
+    uart::puts("TCR_EL1   : ");
+    uart::put_hex(arch::cpu::read_tcr_el1());
+    uart::putc(b'\n');
+
     arch::cpu::init();
+
+    uart::puts("TCR_EL1   : ");
+    uart::put_hex(arch::cpu::read_tcr_el1());
+    uart::putc(b'\n');
 
     unsafe {
         core::arch::asm!("brk #0");

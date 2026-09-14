@@ -123,7 +123,7 @@ impl PageTableHierarchy {
                 let physical = 0x4000_0000 + (index as u64 * 0x20_0000);
 
                 table.entries[index] =
-                    block_descriptor(physical, ATTR_NORMAL | AP_RO_EL1 | SH_INNER | ACCESS_FLAG);
+                    block_descriptor(physical, ATTR_NORMAL | AP_RW_EL1 | SH_INNER | ACCESS_FLAG);
             }
         });
 
