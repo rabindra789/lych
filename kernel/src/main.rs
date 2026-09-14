@@ -30,6 +30,7 @@ pub extern "C" fn kernel_main() -> ! {
 
     memory::init();
     memory::test_page_table_mappings();
+    memory::mmu::install_page_table_root();
     memory::print_layout();
 
     loop {

@@ -3,7 +3,7 @@ use core::arch::asm;
 pub const MAIR_ATTR_DEVICE_NGNRE: u64 = 0x04;
 pub const MAIR_ATTR_NORMAL_WBWA: u64 = 0xFF;
 
-pub const MAIR_EL1_VALUE: u64 = MAIR_ATTR_DEVICE_NGNRE | (MAIR_ATTR_NORMAL_WBWA << 8); 
+pub const MAIR_EL1_VALUE: u64 = MAIR_ATTR_DEVICE_NGNRE | (MAIR_ATTR_NORMAL_WBWA << 8);
 
 unsafe extern "C" {
     fn exception_vectors_init();
@@ -54,6 +54,18 @@ pub fn configure_mair() {
             "msr MAIR_EL1, {value}",
             "isb",
             value = in (reg) MAIR_EL1_VALUE,
+        );
+    }
+}
+
+/// Set the EL1 translation table base register.
+pub fn set_ttbr0_el1(physical_address: u64) {
+    unsafe {
+        asm!(
+            "msr TTBR0_EL1, {value}",
+            "dsb ish",
+            "isb",
+            value = in(reg) physical_address,
         );
     }
 }

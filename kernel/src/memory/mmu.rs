@@ -35,6 +35,8 @@ pub struct PageTableHierarchy {
     pub uart_l2: crate::memory::Frame,
 }
 
+static mut PAGE_TABLE_HIERARCHY: Option<PageTableHierarchy> = None;
+
 impl PageTable {
     pub const fn new() -> Self {
         Self {
@@ -141,6 +143,32 @@ impl PageTableHierarchy {
     }
 }
 
+pub fn init_page_tables() {
+    let hierarchy = PageTableHierarchy::new().expect("failed to allocate page-table hierarchy");
+
+    hierarchy.zero();
+    hierarchy.link_tables();
+
+    unsafe {
+        PAGE_TABLE_HIERARCHY = Some(hierarchy);
+    }
+}
+
+pub fn with_page_table_hierarchy<R>(f: impl FnOnce(&PageTableHierarchy) -> R) -> R {
+    unsafe {
+        let slot = core::ptr::addr_of_mut!(PAGE_TABLE_HIERARCHY);
+
+        match (*slot).as_ref() {
+            Some(hierarchy) => f(hierarchy),
+            None => panic!("page-table hierarchy not initialized"),
+        }
+    }
+}
+
+pub fn root_table_address() -> u64 {
+    with_page_table_hierarchy(|hierarchy| hierarchy.l0.start.as_u64())
+}
+
 pub fn with_page_table<R>(frame: crate::memory::Frame, f: impl FnOnce(&mut PageTable) -> R) -> R {
     let virtual_address = crate::memory::phys_to_virt(frame.start);
 
@@ -198,4 +226,10 @@ pub fn allocate_page_table_frame() -> Option<crate::memory::Frame> {
 
 pub fn block_descriptor(physical: u64, attributes: u64) -> u64 {
     (physical & 0x0000_FFFF_FFE0_0000) | DESC_VALID | attributes
+}
+
+pub fn install_page_table_root() {
+    let root = root_table_address();
+
+    crate::arch::cpu::set_ttbr0_el1(root);
 }
