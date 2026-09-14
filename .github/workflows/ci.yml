@@ -12,6 +12,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -22,5 +24,8 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all --check
 
-      - name: Build kernel
+      - name: Build kernel for aarch64-unknown-none
         run: cargo build --release
+
+      - name: Check for whitespace errors
+        run: git diff --check origin/main...HEAD
