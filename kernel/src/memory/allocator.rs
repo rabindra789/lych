@@ -79,6 +79,38 @@ impl FrameAllocator {
 
         self.bitmap.clear(index);
     }
+
+    pub fn reserve_range(&mut self, start: u64, end: u64) {
+        assert!(start < end);
+        assert!(super::is_page_aligned(start));
+        assert!(super::is_page_aligned(end));
+
+        assert!(start >= self.start);
+        assert!(end <= self.end);
+
+        let start_index = (start - self.start) / PAGE_SIZE;
+        let end_index = (end - self.start) / PAGE_SIZE;
+
+        for index in start_index..end_index {
+            self.bitmap.set(index);
+        }
+    }
+
+    pub fn is_allocated(&self, frame: Frame) -> bool {
+        let frame_start = frame.start.as_u64();
+
+        if frame_start < self.start || frame_start >= self.end {
+            return false;
+        }
+
+        if !super::is_page_aligned(frame_start) {
+            return false;
+        }
+
+        let index = (frame_start - self.start) / PAGE_SIZE;
+
+        self.bitmap.is_set(index)
+    }
 }
 
 pub fn bitmap_size(frame_count: u64) -> u64 {
@@ -149,6 +181,14 @@ impl PhysicalMemoryManager {
 
     pub fn deallocate_frame(&mut self, frame: Frame) {
         self.allocator.deallocate(frame);
+    }
+
+    pub fn reserve_range(&mut self, start: u64, end: u64) {
+        self.allocator.reserve_range(start, end);
+    }
+
+    pub fn is_allocated(&self, frame: Frame) -> bool {
+        self.allocator.is_allocated(frame)
     }
 }
 

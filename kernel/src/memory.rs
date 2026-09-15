@@ -3,6 +3,10 @@ pub mod mmu;
 
 use allocator::PhysicalMemoryManager;
 
+pub const HEAP_START: u64 = 0x4100_0000;
+pub const HEAP_SIZE: u64 = 0x0010_0000;
+pub const HEAP_END: u64 = HEAP_START + HEAP_SIZE;
+
 #[repr(C)]
 pub struct MemoryRegion {
     pub start: u64,
@@ -174,8 +178,10 @@ static mut PHYSICAL_MEMORY: Option<PhysicalMemoryManager> = None;
 pub fn init() {
     let region = usable_memory_region();
 
-    let manager =
+    let mut manager =
         PhysicalMemoryManager::new(region.start, region.end, bitmap_start(), bitmap_size());
+
+    manager.reserve_range(HEAP_START, HEAP_END);
 
     unsafe {
         PHYSICAL_MEMORY = Some(manager);
@@ -307,4 +313,21 @@ pub fn test_page_table_mappings() {
     });
 
     crate::drivers::uart::puts("Identity mappings validated successfully\n");
+}
+
+pub fn test_heap_reservation() {
+    with_physical_memory(|manager| {
+        let first = Frame {
+            start: PhysAddr::new(HEAP_START),
+        };
+
+        let last = Frame {
+            start: PhysAddr::new(HEAP_END - PAGE_SIZE),
+        };
+
+        assert!(manager.is_allocated(first));
+        assert!(manager.is_allocated(last));
+    });
+
+    crate::drivers::uart::puts("Heap reservation validated successfully\n");
 }
