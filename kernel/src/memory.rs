@@ -1,4 +1,5 @@
 pub mod allocator;
+pub mod heap;
 pub mod mmu;
 
 use allocator::PhysicalMemoryManager;
@@ -254,6 +255,29 @@ pub fn print_layout() {
     }
 }
 
+static mut KERNEL_HEAP: Option<heap::KernelHeap> = None;
+
+pub fn init_heap() {
+    let mut heap = heap::KernelHeap::new();
+
+    heap.init(HEAP_START as usize, HEAP_SIZE as usize);
+
+    unsafe {
+        KERNEL_HEAP = Some(heap);
+    }
+}
+
+pub fn with_kernel_heap<R>(f: impl FnOnce(&mut heap::KernelHeap) -> R) -> R {
+    unsafe {
+        let slot = core::ptr::addr_of_mut!(KERNEL_HEAP);
+
+        match (*slot).as_mut() {
+            Some(heap) => f(heap),
+            None => panic!("kernel heap not initialized"),
+        }
+    }
+}
+
 pub fn phys_to_virt(addr: PhysAddr) -> VirtAddr {
     VirtAddr::new(addr.as_u64())
 }
@@ -330,4 +354,26 @@ pub fn test_heap_reservation() {
     });
 
     crate::drivers::uart::puts("Heap reservation validated successfully\n");
+}
+pub fn test_heap() {
+    use core::alloc::Layout;
+
+    with_kernel_heap(|heap| {
+        let first = heap
+            .allocate(Layout::from_size_align(16, 8).unwrap())
+            .expect("heap allocation failed");
+
+        let second = heap
+            .allocate(Layout::from_size_align(32, 16).unwrap())
+            .expect("heap allocation failed");
+
+        assert_eq!(first as usize % 8, 0);
+        assert_eq!(second as usize % 16, 0);
+
+        assert!(second as usize >= first as usize);
+        assert_eq!(heap.used(), 48);
+        assert_eq!(heap.remaining(), HEAP_SIZE as usize - 48);
+    });
+
+    crate::drivers::uart::puts("Heap allocation test passed\n");
 }

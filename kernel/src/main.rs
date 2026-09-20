@@ -29,7 +29,9 @@ pub extern "C" fn kernel_main() -> ! {
     }
 
     memory::init();
+    memory::init_heap();
     memory::test_heap_reservation();
+    memory::test_heap();
     memory::test_page_table_mappings();
     memory::mmu::install_page_table_root();
     arch::cpu::enable_mmu();
