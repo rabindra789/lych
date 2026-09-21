@@ -204,7 +204,7 @@ Planned:
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, build, and debugging instructions. The roadmap above lists the areas currently in scope.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, build, and debugging instructions. The roadmap above lists the areas currently in scope. Please note our [Code of Conduct](CODE_OF_CONDUCT.md) and report security issues per the [Security Policy](SECURITY.md).
 
 ## License
 

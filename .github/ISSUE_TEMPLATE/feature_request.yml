@@ -1,0 +1,54 @@
+name: Feature request
+description: Suggest a feature or roadmap item for Lych
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for your interest in improving Lych. For roadmap-phase ideas, check the
+        [Roadmap](https://github.com/rabindra789/lych#roadmap) first.
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Problem or motivation
+      description: What problem does this feature solve, and for whom?
+      placeholder: "Describe the need this addresses."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How should the feature work? Be as concrete as you can.
+      placeholder: "Describe the proposed behavior, API, or design."
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What alternatives have you considered, and why are they not sufficient?
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Roadmap phase
+      description: Which roadmap phase does this belong to, if any?
+      options:
+        - Phase 2: Memory
+        - Phase 3: Time and Interrupts
+        - Phase 4: Processes
+        - Phase 5: Virtual Memory
+        - Phase 6: Userspace
+        - Phase 7: Drivers
+        - Phase 8: Networking
+        - Phase 9: Multiprocessor
+        - Tooling / CI / Docs
+        - Not sure
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I have searched existing issues for a duplicate before opening this one
+          required: true
