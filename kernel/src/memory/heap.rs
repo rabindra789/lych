@@ -1,4 +1,5 @@
-use core::alloc::Layout;
+use core::alloc::{GlobalAlloc, Layout};
+use core::cell::UnsafeCell;
 
 pub struct KernelHeap {
     start: usize,
@@ -16,6 +17,7 @@ impl KernelHeap {
     }
 
     pub fn init(&mut self, start: usize, size: usize) {
+        assert!(self.start == 0);
         assert!(size > 0);
 
         self.start = start;
@@ -53,6 +55,42 @@ impl KernelHeap {
     }
 }
 
+pub struct GlobalHeap {
+    heap: UnsafeCell<KernelHeap>,
+}
+
+impl GlobalHeap {
+    pub const fn new() -> Self {
+        Self {
+            heap: UnsafeCell::new(KernelHeap::new()),
+        }
+    }
+
+    pub fn init(&self, start: usize, size: usize) {
+        unsafe {
+            (*self.heap.get()).init(start, size);
+        }
+    }
+}
+
+// Lych is currently single core and the heap is not accessed concurrently. This will need to be replaced with real synchronization when SMP/preemption is added.
+unsafe impl Sync for GlobalHeap {}
+
+unsafe impl GlobalAlloc for GlobalHeap {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        unsafe {
+            match (*self.heap.get()).allocate(layout) {
+                Some(ptr) => ptr,
+                None => core::ptr::null_mut(),
+            }
+        }
+    }
+
+    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
+        // The current bump allocator does not reuse freed memory.
+    }
+}
+
 const fn align_up(value: usize, align: usize) -> Option<usize> {
     if align == 0 || !align.is_power_of_two() {
         return None;
@@ -65,6 +103,9 @@ const fn align_up(value: usize, align: usize) -> Option<usize> {
         None => None,
     }
 }
+
+#[global_allocator]
+pub static KERNEL_ALLOCATOR: GlobalHeap = GlobalHeap::new();
 
 #[cfg(test)]
 mod tests {

@@ -255,27 +255,8 @@ pub fn print_layout() {
     }
 }
 
-static mut KERNEL_HEAP: Option<heap::KernelHeap> = None;
-
 pub fn init_heap() {
-    let mut heap = heap::KernelHeap::new();
-
-    heap.init(HEAP_START as usize, HEAP_SIZE as usize);
-
-    unsafe {
-        KERNEL_HEAP = Some(heap);
-    }
-}
-
-pub fn with_kernel_heap<R>(f: impl FnOnce(&mut heap::KernelHeap) -> R) -> R {
-    unsafe {
-        let slot = core::ptr::addr_of_mut!(KERNEL_HEAP);
-
-        match (*slot).as_mut() {
-            Some(heap) => f(heap),
-            None => panic!("kernel heap not initialized"),
-        }
-    }
+    heap::KERNEL_ALLOCATOR.init(HEAP_START as usize, HEAP_SIZE as usize);
 }
 
 pub fn phys_to_virt(addr: PhysAddr) -> VirtAddr {
@@ -355,25 +336,58 @@ pub fn test_heap_reservation() {
 
     crate::drivers::uart::puts("Heap reservation validated successfully\n");
 }
+
 pub fn test_heap() {
-    use core::alloc::Layout;
+    use core::alloc::{GlobalAlloc, Layout};
 
-    with_kernel_heap(|heap| {
-        let first = heap
-            .allocate(Layout::from_size_align(16, 8).unwrap())
-            .expect("heap allocation failed");
+    use crate::memory::heap::KERNEL_ALLOCATOR;
 
-        let second = heap
-            .allocate(Layout::from_size_align(32, 16).unwrap())
-            .expect("heap allocation failed");
+    let first_layout = Layout::from_size_align(16, 8).unwrap();
+    let second_layout = Layout::from_size_align(32, 16).unwrap();
 
-        assert_eq!(first as usize % 8, 0);
-        assert_eq!(second as usize % 16, 0);
+    let first = unsafe { GlobalAlloc::alloc(&KERNEL_ALLOCATOR, first_layout) };
+    let second = unsafe { GlobalAlloc::alloc(&KERNEL_ALLOCATOR, second_layout) };
 
-        assert!(second as usize >= first as usize);
-        assert_eq!(heap.used(), 48);
-        assert_eq!(heap.remaining(), HEAP_SIZE as usize - 48);
-    });
+    assert!(!first.is_null());
+    assert!(!second.is_null());
 
-    crate::drivers::uart::puts("Heap allocation test passed\n");
+    assert_eq!(first as usize % 8, 0);
+    assert_eq!(second as usize % 16, 0);
+    assert!(second as usize >= first as usize);
+
+    unsafe {
+        GlobalAlloc::dealloc(&KERNEL_ALLOCATOR, first, first_layout);
+
+        GlobalAlloc::dealloc(&KERNEL_ALLOCATOR, second, second_layout);
+    }
+
+    crate::drivers::uart::puts("Global heap test passed\n");
+}
+
+pub fn test_box() {
+    use alloc::boxed::Box;
+
+    let value = Box::new(1234u64);
+
+    assert_eq!(*value, 1234);
+
+    crate::drivers::uart::puts("Box allocation test passed\n");
+}
+
+pub fn test_vec() {
+    use alloc::vec::Vec;
+
+    let mut values = Vec::new();
+
+    for value in 0..16 {
+        values.push(value);
+    }
+
+    assert_eq!(values.len(), 16);
+
+    for index in 0..16 {
+        assert_eq!(values[index], index);
+    }
+
+    crate::drivers::uart::puts("Vec allocation test passed\n");
 }
