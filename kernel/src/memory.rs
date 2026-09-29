@@ -6,7 +6,7 @@ use allocator::PhysicalMemoryManager;
 
 pub const HEAP_START: u64 = 0x4100_0000;
 pub const HEAP_SIZE: u64 = 0x0010_0000;
-pub const HEAP_END: u64 = HEAP_START + HEAP_SIZE;
+pub const HEAP_MAX: u64 = 0x4200_0000;
 
 #[repr(C)]
 pub struct MemoryRegion {
@@ -182,7 +182,7 @@ pub fn init() {
     let mut manager =
         PhysicalMemoryManager::new(region.start, region.end, bitmap_start(), bitmap_size());
 
-    manager.reserve_range(HEAP_START, HEAP_END);
+    manager.reserve_range(HEAP_START, HEAP_MAX);
 
     unsafe {
         PHYSICAL_MEMORY = Some(manager);
@@ -256,7 +256,11 @@ pub fn print_layout() {
 }
 
 pub fn init_heap() {
-    heap::KERNEL_ALLOCATOR.init(HEAP_START as usize, HEAP_SIZE as usize);
+    heap::KERNEL_ALLOCATOR.init(
+        HEAP_START as usize,
+        HEAP_SIZE as usize,
+        (HEAP_MAX - HEAP_START) as usize,
+    );
 }
 
 pub fn phys_to_virt(addr: PhysAddr) -> VirtAddr {
@@ -327,7 +331,7 @@ pub fn test_heap_reservation() {
         };
 
         let last = Frame {
-            start: PhysAddr::new(HEAP_END - PAGE_SIZE),
+            start: PhysAddr::new(HEAP_MAX - PAGE_SIZE),
         };
 
         assert!(manager.is_allocated(first));
