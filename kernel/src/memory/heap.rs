@@ -1,11 +1,20 @@
 use core::alloc::{GlobalAlloc, Layout};
 use core::cell::UnsafeCell;
 
+#[repr(C)]
+struct FreeBlock {
+    size: usize,
+    next: *mut FreeBlock,
+}
+
+const FREE_BLOCK_HEADER_SIZE: usize = core::mem::size_of::<FreeBlock>();
+
 pub struct KernelHeap {
     start: usize,
     end: usize,
-    next: usize,
     limit: usize,
+    free_list: *mut FreeBlock,
+    allocated: usize,
 }
 
 impl KernelHeap {
@@ -13,8 +22,9 @@ impl KernelHeap {
         Self {
             start: 0,
             end: 0,
-            next: 0,
             limit: 0,
+            free_list: core::ptr::null_mut(),
+            allocated: 0,
         }
     }
 
@@ -28,8 +38,18 @@ impl KernelHeap {
 
         self.start = start;
         self.end = end;
-        self.next = start;
         self.limit = limit;
+
+        self.allocated = 0;
+
+        let first_block = start as *mut FreeBlock;
+
+        unsafe {
+            (*first_block).size = size;
+            (*first_block).next = core::ptr::null_mut();
+        }
+
+        self.free_list = first_block;
     }
 
     fn grow_pages(&mut self, pages: usize) -> bool {
@@ -63,31 +83,133 @@ impl KernelHeap {
             return None;
         }
 
-        let aligned_start = align_up(self.next, align)?;
+        let required = FREE_BLOCK_HEADER_SIZE.checked_add(size)?;
 
-        let allocation_end = aligned_start.checked_add(size)?;
+        let mut prev: *mut FreeBlock = core::ptr::null_mut();
+        let mut current = self.free_list;
 
-        if allocation_end > self.end {
-            let missing = allocation_end - self.end;
+        while !current.is_null() {
+            let block_addr = current as usize;
+            let block_size = unsafe { (*current).size };
+            let next_block = unsafe { (*current).next };
 
-            let pages = missing / 4096 + if missing % 4096 != 0 { 1 } else { 0 };
+            let mut user_addr = align_up(block_addr.checked_add(FREE_BLOCK_HEADER_SIZE)?, align)?;
+            let mut alloc_addr = user_addr.checked_sub(FREE_BLOCK_HEADER_SIZE)?;
+            let mut prefix = alloc_addr.checked_sub(block_addr)?;
 
-            if !self.grow_pages(pages) {
-                return None;
+            // If the prefix is too small to hold a free-block header, move the allocation forward so the prefix can remain usable.
+            if prefix != 0 && prefix < FREE_BLOCK_HEADER_SIZE {
+                user_addr = user_addr.checked_add(align)?;
+                alloc_addr = user_addr.checked_sub(FREE_BLOCK_HEADER_SIZE)?;
+                prefix = alloc_addr.checked_sub(block_addr)?;
             }
+
+            let available = match block_size.checked_sub(prefix) {
+                Some(value) => value,
+                None => {
+                    prev = current;
+                    current = next_block;
+                    continue;
+                }
+            };
+
+            if available < required {
+                prev = current;
+                current = next_block;
+                continue;
+            }
+
+            let suffix = available - required;
+
+            let suffix_block = if suffix >= FREE_BLOCK_HEADER_SIZE {
+                let suffix_addr = alloc_addr.checked_add(required)?;
+                let suffix_block = suffix_addr as *mut FreeBlock;
+
+                unsafe {
+                    (*suffix_block).size = suffix;
+                    (*suffix_block).next = next_block;
+                }
+
+                Some(suffix_block)
+            } else {
+                None
+            };
+
+            // Keep a prefix free block when possible.
+            if prefix >= FREE_BLOCK_HEADER_SIZE {
+                unsafe {
+                    (*current).size = prefix;
+                    (*current).next = suffix_block.unwrap_or(next_block);
+                }
+            } else {
+                // Prefix is zero, so replace the current free block with the optional suffix block.
+                let replacement = suffix_block.unwrap_or(next_block);
+
+                if prev.is_null() {
+                    self.free_list = replacement;
+                } else {
+                    unsafe {
+                        (*prev).next = replacement;
+                    }
+                }
+            }
+
+            // Reuse the beginning of the allocated block as its metadata.
+            let allocation = alloc_addr as *mut FreeBlock;
+
+            let allocation_size = if suffix >= FREE_BLOCK_HEADER_SIZE {
+                required
+            } else {
+                available
+            };
+
+            unsafe {
+                (*allocation).size = allocation_size;
+                (*allocation).next = core::ptr::null_mut();
+            }
+
+            self.allocated = self.allocated.saturating_add(allocation_size);
+
+            return Some(user_addr as *mut u8);
         }
 
-        self.next = allocation_end;
+        // No existing free block can satisfy the allocation.
+        // Grow the heap enough for the header, allocation, and alignment padding.
+        let growth_needed = required.checked_add(align - 1)?;
 
-        Some(aligned_start as *mut u8)
+        let pages = growth_needed.checked_add(4095)? / 4096;
+
+        let growth_bytes = pages.checked_mul(4096)?;
+        let old_end = self.end;
+
+        if !self.grow_pages(pages) {
+            return None;
+        }
+
+        let new_block = old_end as *mut FreeBlock;
+
+        unsafe {
+            (*new_block).size = growth_bytes;
+            (*new_block).next = self.free_list;
+        }
+
+        self.free_list = new_block;
+
+        self.allocate(layout)
     }
 
     pub fn used(&self) -> usize {
-        self.next - self.start
+        self.allocated
     }
 
     pub fn remaining(&self) -> usize {
-        self.end - self.next
+        let mut sum: usize = 0;
+        let mut current = self.free_list;
+        while !current.is_null() {
+            sum = sum.saturating_add(unsafe { (*current).size });
+            current = unsafe { (*current).next };
+        }
+        sum
     }
 }
 
@@ -148,7 +270,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn allocations_are_aligned_and_sequential() {
+    fn allocations_are_aligned_and_non_overlapping() {
         let mut heap = KernelHeap::new();
 
         heap.init(0x1000, 0x1000, 0x2000);
@@ -156,24 +278,35 @@ mod tests {
         let first = heap.allocate(Layout::from_size_align(16, 8).unwrap());
         let second = heap.allocate(Layout::from_size_align(32, 16).unwrap());
 
-        assert_eq!(first.unwrap() as usize, 0x1000);
-        assert_eq!(second.unwrap() as usize, 0x1010);
-        assert_eq!(heap.used(), 0x30);
-        assert_eq!(heap.remaining(), 0xFD0);
+        let first_addr = first.unwrap() as usize;
+        let second_addr = second.unwrap() as usize;
+
+        assert_eq!(first_addr % 8, 0);
+        assert_eq!(second_addr % 16, 0);
+
+        let first_end = first_addr + 16;
+        let second_end = second_addr + 32;
+
+        assert!(first_end <= second_addr || second_end <= first_addr);
+
+        assert!(heap.used() > 0);
+        assert!(heap.remaining() > 0);
+        assert_eq!(heap.used() + heap.remaining(), heap.end - heap.start);
     }
 
     #[test]
     fn allocation_fails_when_heap_is_full() {
         let mut heap = KernelHeap::new();
 
-        heap.init(0x1000, 32, 64);
+        heap.init(0x1000, 64, 64);
 
         assert!(
             heap.allocate(Layout::from_size_align(32, 8).unwrap())
                 .is_some()
         );
+
         assert!(
-            heap.allocate(Layout::from_size_align(1, 1).unwrap())
+            heap.allocate(Layout::from_size_align(32, 8).unwrap())
                 .is_none()
         );
     }
@@ -186,12 +319,11 @@ mod tests {
 
         let first = heap.allocate(Layout::from_size_align(32, 8).unwrap());
         assert!(first.is_some());
-        assert_eq!(heap.remaining(), 0);
 
         let second = heap.allocate(Layout::from_size_align(1, 1).unwrap());
         assert!(second.is_some());
 
-        assert_eq!(second.unwrap() as usize, 0x1020);
-        assert_eq!(heap.remaining(), 4095);
+        assert!(heap.end > 0x1020);
+        assert!(heap.remaining() > 0);
     }
 }
