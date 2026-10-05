@@ -395,3 +395,29 @@ pub fn test_vec() {
 
     crate::drivers::uart::puts("Vec allocation test passed\n");
 }
+
+pub fn test_heap_reuse() {
+    use core::alloc::{GlobalAlloc, Layout};
+
+    use crate::memory::heap::KERNEL_ALLOCATOR;
+
+    let layout = Layout::from_size_align(32, 8).unwrap();
+
+    let first = unsafe { GlobalAlloc::alloc(&KERNEL_ALLOCATOR, layout) };
+    assert!(!first.is_null());
+
+    unsafe {
+        GlobalAlloc::dealloc(&KERNEL_ALLOCATOR, first, layout);
+    }
+
+    let reused = unsafe { GlobalAlloc::alloc(&KERNEL_ALLOCATOR, layout) };
+    assert!(!reused.is_null());
+
+    assert_eq!(reused as usize, first as usize);
+
+    unsafe {
+        GlobalAlloc::dealloc(&KERNEL_ALLOCATOR, reused, layout);
+    }
+
+    crate::drivers::uart::puts("Heap deallocation and reuse test passed\n");
+}

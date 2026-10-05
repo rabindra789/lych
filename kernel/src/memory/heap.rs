@@ -211,6 +211,46 @@ impl KernelHeap {
         }
         sum
     }
+
+    pub unsafe fn deallocate(&mut self, _ptr: *mut u8, _layout: Layout) {
+        if _ptr.is_null() {
+            return;
+        }
+
+        let block_addr = (_ptr as usize)
+            .checked_sub(FREE_BLOCK_HEADER_SIZE)
+            .expect("invalid heap allocation pointer");
+
+        let block = block_addr as *mut FreeBlock;
+        let block_size = unsafe { (*block).size };
+
+        assert!(block_addr >= self.start);
+        assert!(block_addr < self.end);
+        assert!(block_size >= FREE_BLOCK_HEADER_SIZE);
+        assert!(block_addr + block_size <= self.end);
+
+        let mut prev: *mut FreeBlock = core::ptr::null_mut();
+        let mut current = self.free_list;
+
+        while !current.is_null() && (current as usize) < block_addr {
+            prev = current;
+            current = unsafe { (*current).next };
+        }
+
+        unsafe {
+            (*block).next = current;
+        }
+
+        if prev.is_null() {
+            self.free_list = block;
+        } else {
+            unsafe {
+                (*prev).next = block;
+            }
+        }
+
+        self.allocated = self.allocated.saturating_sub(block_size);
+    }
 }
 
 pub struct GlobalHeap {
@@ -245,7 +285,9 @@ unsafe impl GlobalAlloc for GlobalHeap {
     }
 
     unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
-        // The current bump allocator does not reuse freed memory.
+        unsafe {
+            (*self.heap.get()).deallocate(_ptr, _layout);
+        }
     }
 }
 
@@ -325,5 +367,34 @@ mod tests {
 
         assert!(heap.end > 0x1020);
         assert!(heap.remaining() > 0);
+    }
+
+    #[test]
+    fn freed_block_is_reused() {
+        let mut heap = KernelHeap::new();
+
+        heap.init(0x1000, 0x1000, 0x2000);
+
+        let first = heap
+            .allocate(Layout::from_size_align(32, 8).unwrap())
+            .unwrap();
+
+        let second = heap
+            .allocate(Layout::from_size_align(32, 8).unwrap())
+            .unwrap();
+
+        unsafe {
+            heap.deallocate(
+                first,
+                Layout::from_size_align(32, 8).unwrap(),
+            );
+        }
+
+        let reused = heap
+            .allocate(Layout::from_size_align(32, 8).unwrap())
+            .unwrap();
+
+        assert_eq!(reused as usize, first as usize);
+        assert_ne!(reused as usize, second as usize);
     }
 }
