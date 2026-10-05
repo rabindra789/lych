@@ -421,3 +421,36 @@ pub fn test_heap_reuse() {
 
     crate::drivers::uart::puts("Heap deallocation and reuse test passed\n");
 }
+
+pub fn test_heap_coalescing() {
+    use core::alloc::{GlobalAlloc, Layout};
+
+    use crate::memory::heap::KERNEL_ALLOCATOR;
+
+    let layout = Layout::from_size_align(32, 8).unwrap();
+
+    let first = unsafe { GlobalAlloc::alloc(&KERNEL_ALLOCATOR, layout) };
+    let second = unsafe { GlobalAlloc::alloc(&KERNEL_ALLOCATOR, layout) };
+
+    assert!(!first.is_null());
+    assert!(!second.is_null());
+
+    unsafe {
+        GlobalAlloc::dealloc(&KERNEL_ALLOCATOR, first, layout);
+        GlobalAlloc::dealloc(&KERNEL_ALLOCATOR, second, layout);
+    }
+
+    let larger_layout = Layout::from_size_align(64, 8).unwrap();
+
+    let merged = unsafe { GlobalAlloc::alloc(&KERNEL_ALLOCATOR, larger_layout) };
+
+    assert!(!merged.is_null());
+
+    assert_eq!(merged as usize, first as usize);
+
+    unsafe {
+        GlobalAlloc::dealloc(&KERNEL_ALLOCATOR, merged, larger_layout);
+    }
+
+    crate::drivers::uart::puts("Heap coalescing test passed\n");
+}

@@ -212,12 +212,12 @@ impl KernelHeap {
         sum
     }
 
-    pub unsafe fn deallocate(&mut self, _ptr: *mut u8, _layout: Layout) {
-        if _ptr.is_null() {
+    pub unsafe fn deallocate(&mut self, ptr: *mut u8, _layout: Layout) {
+        if ptr.is_null() {
             return;
         }
 
-        let block_addr = (_ptr as usize)
+        let block_addr = (ptr as usize)
             .checked_sub(FREE_BLOCK_HEADER_SIZE)
             .expect("invalid heap allocation pointer");
 
@@ -227,7 +227,12 @@ impl KernelHeap {
         assert!(block_addr >= self.start);
         assert!(block_addr < self.end);
         assert!(block_size >= FREE_BLOCK_HEADER_SIZE);
-        assert!(block_addr + block_size <= self.end);
+
+        let block_end = block_addr
+            .checked_add(block_size)
+            .expect("heap block range overflow");
+
+        assert!(block_end <= self.end);
 
         let mut prev: *mut FreeBlock = core::ptr::null_mut();
         let mut current = self.free_list;
@@ -250,6 +255,41 @@ impl KernelHeap {
         }
 
         self.allocated = self.allocated.saturating_sub(block_size);
+
+        // Merge with the next free block when adjacent.
+        if !current.is_null() {
+            let current_addr = current as usize;
+
+            if block_end == current_addr {
+                let current_size = unsafe { (*current).size };
+                let current_next = unsafe { (*current).next };
+
+                unsafe {
+                    (*block).size = block_size + current_size;
+                    (*block).next = current_next;
+                }
+            }
+        }
+
+        // Merge with the previous free block when adjacent.
+        if !prev.is_null() {
+            let prev_addr = prev as usize;
+            let prev_size = unsafe { (*prev).size };
+            let block_end = unsafe { (*block).size };
+
+            if prev_addr
+                .checked_add(prev_size)
+                .expect("heap block range overflow")
+                == block_addr
+            {
+                let block_next = unsafe { (*block).next };
+
+                unsafe {
+                    (*prev).size = prev_size + block_end;
+                    (*prev).next = block_next;
+                }
+            }
+        }
     }
 }
 
@@ -384,10 +424,7 @@ mod tests {
             .unwrap();
 
         unsafe {
-            heap.deallocate(
-                first,
-                Layout::from_size_align(32, 8).unwrap(),
-            );
+            heap.deallocate(first, Layout::from_size_align(32, 8).unwrap());
         }
 
         let reused = heap
