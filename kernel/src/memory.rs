@@ -490,11 +490,7 @@ pub fn test_heap_alignment() {
 
     for index in 0..pointers.len() {
         unsafe {
-            GlobalAlloc::dealloc(
-                &KERNEL_ALLOCATOR,
-                pointers[index],
-                layouts[index].unwrap(),
-            );
+            GlobalAlloc::dealloc(&KERNEL_ALLOCATOR, pointers[index], layouts[index].unwrap());
         }
     }
 
@@ -502,8 +498,8 @@ pub fn test_heap_alignment() {
 }
 
 pub fn test_heap_allocation_sizes() {
-    use core::alloc::{GlobalAlloc, Layout};
     use crate::memory::heap::KERNEL_ALLOCATOR;
+    use core::alloc::{GlobalAlloc, Layout};
 
     let sizes = [1, 16, 64, 256, 1024, 4096];
 
@@ -541,13 +537,41 @@ pub fn test_heap_allocation_sizes() {
 
     for index in 0..pointers.len() {
         unsafe {
-            GlobalAlloc::dealloc(
-                &KERNEL_ALLOCATOR,
-                pointers[index],
-                layouts[index].unwrap(),
-            );
+            GlobalAlloc::dealloc(&KERNEL_ALLOCATOR, pointers[index], layouts[index].unwrap());
         }
     }
 
     crate::drivers::uart::puts("Heap allocation sizes test passed\n");
+}
+
+pub fn test_heap_growth_coalescing() {
+    use core::alloc::{GlobalAlloc, Layout};
+
+    use crate::memory::heap::KERNEL_ALLOCATOR;
+
+    // Larger than the initial 1 MiB heap, so growth is required.
+    let growth_layout = Layout::from_size_align(0x10_0000, 8).unwrap();
+
+    let first = unsafe { GlobalAlloc::alloc(&KERNEL_ALLOCATOR, growth_layout) };
+    assert!(!first.is_null(), "heap growth allocation failed");
+
+    unsafe {
+        GlobalAlloc::dealloc(&KERNEL_ALLOCATOR, first, growth_layout);
+    }
+
+    // This allocation needs the initial heap and grown region
+    // to be available as one sufficiently large free block.
+    let combined_layout = Layout::from_size_align(0x18_0000, 8).unwrap();
+
+    let combined = unsafe { GlobalAlloc::alloc(&KERNEL_ALLOCATOR, combined_layout) };
+    assert!(
+        !combined.is_null(),
+        "allocation failed after heap growth and coalescing"
+    );
+
+    unsafe {
+        GlobalAlloc::dealloc(&KERNEL_ALLOCATOR, combined, combined_layout);
+    }
+
+    crate::drivers::uart::puts("Heap growth coalescing test passed\n");
 }

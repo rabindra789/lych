@@ -75,6 +75,62 @@ impl KernelHeap {
         true
     }
 
+    fn insert_free_block(&mut self, block: *mut FreeBlock) {
+        let block_addr = block as usize;
+
+        // Find the correct position by memory address.
+        let mut prev: *mut FreeBlock = core::ptr::null_mut();
+        let mut current = self.free_list;
+
+        while !current.is_null() && (current as usize) < block_addr {
+            prev = current;
+            current = unsafe { (*current).next };
+        }
+
+        unsafe {
+            (*block).next = current;
+        }
+
+        if prev.is_null() {
+            self.free_list = block;
+        } else {
+            unsafe {
+                (*prev).next = block;
+            }
+        }
+
+        //Merge with the next block if they are adjacent.
+        if !current.is_null() {
+            let block_size = unsafe { (*block).size };
+
+            if block_addr.checked_add(block_size) == Some(current as usize) {
+                let current_size = unsafe { (*current).size };
+                let current_next = unsafe { (*current).next };
+
+                unsafe {
+                    (*block).size = block_size + current_size;
+                    (*block).next = current_next;
+                }
+            }
+        }
+
+        // Merge with the previous block if they are adjacent.
+        if !prev.is_null() {
+            let prev_addr = prev as usize;
+            let prev_size = unsafe { (*prev).size };
+            let block_size = unsafe { (*block).size };
+
+            if prev_addr.checked_add(prev_size) == Some(block_addr) {
+                let block_next = unsafe { (*block).next };
+
+                unsafe {
+                    (*prev).size = prev_size + block_size;
+                    (*prev).next = block_next;
+                }
+            }
+        }
+    }
+
     pub fn allocate(&mut self, layout: Layout) -> Option<*mut u8> {
         let size = layout.size();
         let align = layout.align();
@@ -193,10 +249,10 @@ impl KernelHeap {
 
         unsafe {
             (*new_block).size = growth_bytes;
-            (*new_block).next = self.free_list;
+            (*new_block).next = core::ptr::null_mut();
         }
 
-        self.free_list = new_block;
+        self.insert_free_block(new_block);
 
         self.allocate(layout)
     }
@@ -237,62 +293,8 @@ impl KernelHeap {
 
         assert!(block_end <= self.end);
 
-        let mut prev: *mut FreeBlock = core::ptr::null_mut();
-        let mut current = self.free_list;
-
-        while !current.is_null() && (current as usize) < block_addr {
-            prev = current;
-            current = unsafe { (*current).next };
-        }
-
-        unsafe {
-            (*block).next = current;
-        }
-
-        if prev.is_null() {
-            self.free_list = block;
-        } else {
-            unsafe {
-                (*prev).next = block;
-            }
-        }
-
         self.allocated = self.allocated.saturating_sub(block_size);
-
-        // Merge with the next free block when adjacent.
-        if !current.is_null() {
-            let current_addr = current as usize;
-
-            if block_end == current_addr {
-                let current_size = unsafe { (*current).size };
-                let current_next = unsafe { (*current).next };
-
-                unsafe {
-                    (*block).size = block_size + current_size;
-                    (*block).next = current_next;
-                }
-            }
-        }
-
-        // Merge with the previous free block when adjacent.
-        if !prev.is_null() {
-            let prev_addr = prev as usize;
-            let prev_size = unsafe { (*prev).size };
-            let block_end = unsafe { (*block).size };
-
-            if prev_addr
-                .checked_add(prev_size)
-                .expect("heap block range overflow")
-                == block_addr
-            {
-                let block_next = unsafe { (*block).next };
-
-                unsafe {
-                    (*prev).size = prev_size + block_end;
-                    (*prev).next = block_next;
-                }
-            }
-        }
+        self.insert_free_block(block);
     }
 }
 
