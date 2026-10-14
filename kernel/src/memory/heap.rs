@@ -257,10 +257,12 @@ impl KernelHeap {
         self.allocate(layout)
     }
 
+    #[allow(dead_code)]
     pub fn used(&self) -> usize {
         self.allocated
     }
 
+    #[allow(dead_code)]
     pub fn remaining(&self) -> usize {
         let mut sum: usize = 0;
         let mut current = self.free_list;

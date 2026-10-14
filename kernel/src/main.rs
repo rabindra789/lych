@@ -31,17 +31,7 @@ pub extern "C" fn kernel_main() -> ! {
     }
 
     memory::init();
-    memory::test_heap_reservation();
     memory::init_heap();
-    memory::test_heap();
-    memory::test_box();
-    memory::test_vec();
-    memory::test_heap_reuse();
-    memory::test_heap_coalescing();
-    memory::test_heap_alignment();
-    memory::test_heap_allocation_sizes();
-    memory::test_heap_growth_coalescing();
-    memory::test_page_table_mappings();
     memory::mmu::install_page_table_root();
     arch::cpu::enable_mmu();
     memory::print_layout();

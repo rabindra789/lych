@@ -130,6 +130,14 @@ The kernel boots on QEMU `virt` and currently provides:
 - Translation control configured in `TCR_EL1` (4 KB granule, 48-bit virtual, 40-bit physical address space)
 - Page-table root installed in `TTBR0_EL1`
 - EL1 MMU enabled (`SCTLR_EL1.M`)
+- Kernel heap allocator with:
+  - First-fit allocation with alignment support
+  - Free-list management with address-ordered insertion
+  - Coalescing of adjacent free blocks on deallocation
+  - Heap growth by page allocation from the frame allocator
+  - Coalescing across heap-growth boundaries
+  - `GlobalAlloc` implementation for `alloc` crate integration
+  - `Box`, `Vec`, and other `alloc` collections working
 
 ## Roadmap
 
@@ -143,7 +151,7 @@ Development is organized into phases. Each phase is implemented and documented b
 - Physical frame allocator (done)
 - Page tables and identity mapping (done)
 - EL1 MMU enabled on QEMU `virt` (done)
-- Heap (pending)
+- Heap (done)
 
 ### Phase 3: Time and Interrupts
 - Generic timer

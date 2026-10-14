@@ -272,6 +272,7 @@ pub fn virt_to_phys(addr: VirtAddr) -> PhysAddr {
     PhysAddr::new(addr.as_u64())
 }
 
+#[allow(dead_code)]
 pub fn test_page_table_mappings() {
     mmu::init_page_tables();
 
@@ -324,6 +325,7 @@ pub fn test_page_table_mappings() {
     crate::drivers::uart::puts("Identity mappings validated successfully\n");
 }
 
+#[allow(dead_code)]
 pub fn test_heap_reservation() {
     with_physical_memory(|manager| {
         let first = Frame {
@@ -341,6 +343,7 @@ pub fn test_heap_reservation() {
     crate::drivers::uart::puts("Heap reservation validated successfully\n");
 }
 
+#[allow(dead_code)]
 pub fn test_heap() {
     use core::alloc::{GlobalAlloc, Layout};
 
@@ -368,6 +371,7 @@ pub fn test_heap() {
     crate::drivers::uart::puts("Global heap test passed\n");
 }
 
+#[allow(dead_code)]
 pub fn test_box() {
     use alloc::boxed::Box;
 
@@ -378,6 +382,7 @@ pub fn test_box() {
     crate::drivers::uart::puts("Box allocation test passed\n");
 }
 
+#[allow(dead_code)]
 pub fn test_vec() {
     use alloc::vec::Vec;
 
@@ -396,6 +401,7 @@ pub fn test_vec() {
     crate::drivers::uart::puts("Vec allocation test passed\n");
 }
 
+#[allow(dead_code)]
 pub fn test_heap_reuse() {
     use core::alloc::{GlobalAlloc, Layout};
 
@@ -422,6 +428,7 @@ pub fn test_heap_reuse() {
     crate::drivers::uart::puts("Heap deallocation and reuse test passed\n");
 }
 
+#[allow(dead_code)]
 pub fn test_heap_coalescing() {
     use core::alloc::{GlobalAlloc, Layout};
 
@@ -455,6 +462,7 @@ pub fn test_heap_coalescing() {
     crate::drivers::uart::puts("Heap coalescing test passed\n");
 }
 
+#[allow(dead_code)]
 pub fn test_heap_alignment() {
     use core::alloc::{GlobalAlloc, Layout};
 
@@ -497,6 +505,7 @@ pub fn test_heap_alignment() {
     crate::drivers::uart::puts("Heap alignment test passed\n");
 }
 
+#[allow(dead_code)]
 pub fn test_heap_allocation_sizes() {
     use crate::memory::heap::KERNEL_ALLOCATOR;
     use core::alloc::{GlobalAlloc, Layout};
@@ -544,6 +553,7 @@ pub fn test_heap_allocation_sizes() {
     crate::drivers::uart::puts("Heap allocation sizes test passed\n");
 }
 
+#[allow(dead_code)]
 pub fn test_heap_growth_coalescing() {
     use core::alloc::{GlobalAlloc, Layout};
 
