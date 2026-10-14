@@ -280,11 +280,12 @@ impl KernelHeap {
             .checked_sub(FREE_BLOCK_HEADER_SIZE)
             .expect("invalid heap allocation pointer");
 
+        assert!(block_addr >= self.start);
+        assert!(block_addr < self.end);
+
         let block = block_addr as *mut FreeBlock;
         let block_size = unsafe { (*block).size };
 
-        assert!(block_addr >= self.start);
-        assert!(block_addr < self.end);
         assert!(block_size >= FREE_BLOCK_HEADER_SIZE);
 
         let block_end = block_addr
