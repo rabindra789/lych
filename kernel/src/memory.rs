@@ -454,3 +454,100 @@ pub fn test_heap_coalescing() {
 
     crate::drivers::uart::puts("Heap coalescing test passed\n");
 }
+
+pub fn test_heap_alignment() {
+    use core::alloc::{GlobalAlloc, Layout};
+
+    use crate::memory::heap::KERNEL_ALLOCATOR;
+
+    let alignments = [1, 2, 4, 8, 16];
+
+    let mut pointers = [core::ptr::null_mut::<u8>(); 5];
+    let mut layouts = [None; 5];
+
+    for (index, align) in alignments.iter().copied().enumerate() {
+        let layout = Layout::from_size_align(3, align).unwrap();
+        let ptr = unsafe { GlobalAlloc::alloc(&KERNEL_ALLOCATOR, layout) };
+
+        assert!(!ptr.is_null());
+        assert_eq!(ptr as usize % align, 0);
+
+        pointers[index] = ptr;
+        layouts[index] = Some(layout);
+    }
+
+    for i in 0..pointers.len() {
+        for j in (i + 1)..pointers.len() {
+            let a_start = pointers[i] as usize;
+            let b_start = pointers[j] as usize;
+
+            assert!(
+                a_start + 3 <= b_start || b_start + 3 <= a_start,
+                "heap allocations overlap"
+            );
+        }
+    }
+
+    for index in 0..pointers.len() {
+        unsafe {
+            GlobalAlloc::dealloc(
+                &KERNEL_ALLOCATOR,
+                pointers[index],
+                layouts[index].unwrap(),
+            );
+        }
+    }
+
+    crate::drivers::uart::puts("Heap alignment test passed\n");
+}
+
+pub fn test_heap_allocation_sizes() {
+    use core::alloc::{GlobalAlloc, Layout};
+    use crate::memory::heap::KERNEL_ALLOCATOR;
+
+    let sizes = [1, 16, 64, 256, 1024, 4096];
+
+    let mut pointers = [core::ptr::null_mut::<u8>(); 6];
+    let mut layouts = [None; 6];
+
+    for (index, size) in sizes.iter().copied().enumerate() {
+        let layout = Layout::from_size_align(size, 8).unwrap();
+        let ptr = unsafe { GlobalAlloc::alloc(&KERNEL_ALLOCATOR, layout) };
+
+        assert!(!ptr.is_null(), "allocation failed");
+        assert_eq!(ptr as usize % 8, 0, "incorrect alignment");
+
+        pointers[index] = ptr;
+        layouts[index] = Some(layout);
+    }
+
+    for index in 0..pointers.len() {
+        unsafe {
+            core::ptr::write_bytes(pointers[index], 0xA5, sizes[index]);
+        }
+    }
+
+    for index in 0..pointers.len() {
+        for j in (index + 1)..pointers.len() {
+            let a = pointers[index] as usize;
+            let b = pointers[j] as usize;
+
+            assert!(
+                a + sizes[index] <= b || b + sizes[j] <= a,
+                "heap allocations overlap"
+            );
+        }
+    }
+
+    for index in 0..pointers.len() {
+        unsafe {
+            GlobalAlloc::dealloc(
+                &KERNEL_ALLOCATOR,
+                pointers[index],
+                layouts[index].unwrap(),
+            );
+        }
+    }
+
+    crate::drivers::uart::puts("Heap allocation sizes test passed\n");
+}

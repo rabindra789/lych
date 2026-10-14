@@ -83,7 +83,10 @@ impl KernelHeap {
             return None;
         }
 
-        let required = FREE_BLOCK_HEADER_SIZE.checked_add(size)?;
+        let required = align_up(
+            FREE_BLOCK_HEADER_SIZE.checked_add(size)?,
+            core::mem::align_of::<FreeBlock>(),
+        )?;
 
         let mut prev: *mut FreeBlock = core::ptr::null_mut();
         let mut current = self.free_list;
