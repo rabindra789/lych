@@ -5,3 +5,4 @@ global_asm!(include_str!("../../../arch/arm64/exception.S"));
 
 pub mod cpu;
 pub mod exception;
+pub mod timer;

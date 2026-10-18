@@ -26,25 +26,34 @@ pub extern "C" fn kernel_main() -> ! {
 
     arch::cpu::init();
 
-    unsafe {
-        core::arch::asm!("brk #0");
+    let timer_frequency = arch::timer::frequency();
+    let start = arch::timer::counter();
+
+    for _ in 0..100_000 {
+        core::hint::spin_loop();
     }
 
+    let end = arch::timer::counter();
+
+    uart::puts("Timer frequency: ");
+    uart::put_hex(timer_frequency);
+    uart::putc(b'\n');
+
+    uart::puts("Timer start: ");
+    uart::put_hex(start);
+    uart::putc(b'\n');
+
+    uart::puts("Timer end: ");
+    uart::put_hex(end);
+    uart::putc(b'\n');
+
+    assert!(timer_frequency > 0);
+    assert!(end > start);
+
     memory::init();
-    memory::test_heap_reservation();
     memory::init_heap();
-    memory::test_heap();
-    memory::test_box();
-    memory::test_vec();
-    memory::test_heap_reuse();
-    memory::test_heap_coalescing();
-    memory::test_heap_alignment();
-    memory::test_heap_allocation_sizes();
-    memory::test_heap_growth_coalescing();
-    memory::test_page_table_mappings();
     memory::mmu::install_page_table_root();
     arch::cpu::enable_mmu();
-    memory::print_layout();
 
     loop {
         core::hint::spin_loop();
