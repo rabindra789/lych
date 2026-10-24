@@ -300,21 +300,26 @@ pub fn test_page_table_mappings() {
             }
         });
 
-        // Verify UART mapping.
+        // Verify device mappings: GIC at index 64 and UART at index 72.
         mmu::with_page_table(hierarchy.uart_l2, |table| {
-            let entry = table.entries[72];
+            let assert_device_block = |index: usize, expected_physical: u64| {
+                let entry = table.entries[index];
 
-            assert_eq!(entry & mmu::DESC_VALID, mmu::DESC_VALID);
+                assert_eq!(entry & mmu::DESC_VALID, mmu::DESC_VALID);
 
-            assert_eq!(entry & mmu::DESC_TABLE, 0);
+                assert_eq!(entry & mmu::DESC_TABLE, 0);
 
-            let physical = entry & 0x0000_FFFF_FFE0_0000;
+                let physical = entry & 0x0000_FFFF_FFE0_0000;
 
-            assert_eq!(physical, 0x0900_0000);
+                assert_eq!(physical, expected_physical);
+            };
 
-            // No unexpected UART mappings.
+            assert_device_block(64, 0x0800_0000);
+            assert_device_block(72, 0x0900_0000);
+
+            // No unexpected device mappings.
             for index in 0..mmu::ENTRY_COUNT {
-                if index != 72 {
+                if index != 64 && index != 72 {
                     assert_eq!(table.entries[index], 0);
                 }
             }

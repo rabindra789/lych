@@ -18,7 +18,7 @@ switch ($Command) {
         cargo build --release
 
         & qemu-system-aarch64 `
-            -M virt `
+            -M virt,gic-version=3 `
             -cpu cortex-a72 `
             -nographic `
             -kernel $Project\target\aarch64-unknown-none\release\kernel
@@ -29,7 +29,7 @@ switch ($Command) {
         cargo build --release
 
         & qemu-system-aarch64 `
-            -M virt `
+            -M virt,gic-version=3 `
             -cpu cortex-a72 `
             -nographic `
             -S `

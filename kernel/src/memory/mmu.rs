@@ -128,6 +128,10 @@ impl PageTableHierarchy {
         });
 
         with_page_table(self.uart_l2, |table| {
+            // GIC registers: 0x0800_0000 - 0x081F_FFFF
+            table.entries[64] = block_descriptor(0x0800_0000, ATTR_DEVICE | ACCESS_FLAG);
+
+            // PL011 UART
             table.entries[72] = block_descriptor(0x0900_0000, ATTR_DEVICE | ACCESS_FLAG);
         });
     }

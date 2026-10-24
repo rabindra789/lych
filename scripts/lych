@@ -14,7 +14,7 @@ case "$1" in
         cargo build --release
 
         exec qemu-system-aarch64 \
-            -M virt \
+            -M virt,gic-version=3 \
             -cpu cortex-a72 \
             -nographic \
             -kernel target/aarch64-unknown-none/release/kernel
@@ -24,7 +24,7 @@ case "$1" in
         cargo build --release
 
         exec qemu-system-aarch64 \
-            -M virt \
+            -M virt,gic-version=3 \
             -cpu cortex-a72 \
             -nographic \
             -S \

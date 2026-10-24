@@ -140,6 +140,20 @@ pub fn enable_mmu() {
     }
 }
 
+/// Unmask IRQ exceptions at EL1.
+pub fn enable_irq() {
+    unsafe {
+        asm!("msr daifclr, #2", "isb");
+    }
+}
+
+/// Mask IRQ exceptions at EL1.
+pub fn disable_irq() {
+    unsafe {
+        asm!("msr daifset, #2", "isb");
+    }
+}
+
 pub fn init() {
     enable_fp_simd();
     configure_mair();
