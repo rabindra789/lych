@@ -39,6 +39,15 @@ pub fn ticks() -> u64 {
     TICKS.load(Ordering::Relaxed)
 }
 
+/// Sleep for the given number of timer ticks
+pub fn sleep(duration: u64) {
+    let start = ticks();
+
+    while ticks().wrapping_sub(start) < duration {
+        crate::arch::cpu::wait_for_interrupt();
+    }
+}
+
 /// Stop the timer tick subsystem.
 pub fn shutdown() {
     crate::arch::cpu::disable_irq();

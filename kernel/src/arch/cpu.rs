@@ -154,6 +154,13 @@ pub fn disable_irq() {
     }
 }
 
+/// Wait for an interrupt
+pub fn wait_for_interrupt() {
+    unsafe {
+        asm!("wfi");
+    }
+}
+
 pub fn init() {
     enable_fp_simd();
     configure_mair();
