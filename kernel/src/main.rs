@@ -12,6 +12,9 @@ use core::panic::PanicInfo;
 use drivers::uart;
 
 use crate::arch::exception::ExceptionFrame;
+use core::sync::atomic::{AtomicU64, Ordering};
+
+static SECONDARY_ONLINE: AtomicU64 = AtomicU64::new(0);
 
 /// First Rust func to executed by the kernel
 #[unsafe(no_mangle)]
@@ -25,6 +28,17 @@ pub extern "C" fn kernel_main() -> ! {
     uart::putc(b'\n');
 
     arch::cpu::init();
+
+    let mpidr = arch::cpu::read_mpidr_el1();
+    let affinity = arch::cpu::cpu_affinity();
+
+    uart::puts("MPIDR_EL1: ");
+    uart::put_hex(mpidr);
+    uart::putc(b'\n');
+
+    uart::puts("CPU affinity: ");
+    uart::put_hex(affinity);
+    uart::putc(b'\n');
 
     let timer_frequency = arch::timer::frequency();
     let start = arch::timer::counter();
@@ -87,6 +101,37 @@ pub extern "C" fn kernel_main() -> ! {
     uart::puts("Timer ticks: ");
     uart::put_hex(arch::timer_tick::ticks());
     uart::puts("\n");
+
+    uart::puts("Starting CPU1 through PSCI...\n");
+
+    let entry_point = secondary_entry as *const () as u64;
+    let status = arch::psci::cpu_on(1, entry_point, 1);
+
+    if status != 0 {
+        uart::puts("PSCI CPU_ON failed: ");
+        uart::put_hex(status as u64);
+        uart::putc(b'\n');
+    } else {
+        // Wait for CPU1 to finish its CPU-local initialization.
+        // Use the architectural counter for a bounded timeout.
+        let start = arch::timer::counter();
+        let timeout = arch::timer::frequency().saturating_mul(5);
+
+        while SECONDARY_ONLINE.load(Ordering::Acquire) != 1 {
+            if arch::timer::counter().wrapping_sub(start) >= timeout {
+                break;
+            }
+
+            core::hint::spin_loop();
+        }
+
+        if SECONDARY_ONLINE.load(Ordering::Acquire) == 1 {
+            uart::puts("CPU1 online: secondary entry confirmed\n");
+        } else {
+            uart::puts("CPU1 startup timed out\n");
+        }
+    }
+
 
     loop {
         core::hint::spin_loop();
@@ -196,4 +241,34 @@ pub extern "C" fn irq_handler() {
     }
 
     arch::gic::end_interrupt(intid);
+}
+
+unsafe extern "C" {
+    fn secondary_entry();
+}
+
+/// Rust entry point for a CPU started through PSCI.
+#[unsafe(no_mangle)]
+pub extern "C" fn secondary_rust_entry(cpu_id: u64) -> ! {
+    // This first milestone intentionally supports CPU1 only.
+    if cpu_id != 1 {
+        loop {
+            core::hint::spin_loop();
+        }
+    }
+
+    // Initialize CPU-local architectural state only.
+    // Do not initialize global memory, heap, or the GIC Distributor.
+    arch::cpu::init();
+
+    // Reuse the primary CPU's already-initialized page tables.
+    memory::mmu::install_page_table_root();
+    arch::cpu::enable_mmu();
+
+    // Publish readiness only after CPU-local setup is complete.
+    SECONDARY_ONLINE.store(cpu_id, Ordering::Release);
+
+    loop {
+        arch::cpu::wait_for_interrupt();
+    }
 }

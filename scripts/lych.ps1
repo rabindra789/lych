@@ -1,6 +1,8 @@
 param(
     [Parameter(Position = 0)]
-    [string]$Command
+    [string]$Command,
+
+    [int]$Cpus = 1
 )
 
 Set-StrictMode -Version Latest
@@ -20,6 +22,7 @@ switch ($Command) {
         & qemu-system-aarch64 `
             -M virt,gic-version=3 `
             -cpu cortex-a72 `
+            -smp $Cpus `
             -nographic `
             -kernel $Project\target\aarch64-unknown-none\release\kernel
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
