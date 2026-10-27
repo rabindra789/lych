@@ -8,3 +8,4 @@ pub mod exception;
 pub mod gic;
 pub mod timer;
 pub mod timer_tick;
+pub mod psci;

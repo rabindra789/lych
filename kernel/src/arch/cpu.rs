@@ -23,6 +23,35 @@ pub fn current_el() -> u64 {
     el >> 2
 }
 
+/// Read the corrent CPU's MPIDR_EL1 register.
+#[inline]
+pub fn read_mpidr_el1() -> u64 {
+    let mpidr: u64;
+
+    unsafe {
+        asm!(
+            "mrs {mpidr}, MPIDR_EL1",
+            mpidr = out(reg) mpidr,
+        );
+    }
+
+    mpidr
+}
+
+/// Return the affinity fields of the current CPU.
+///
+/// MPIDR affinity fields:
+/// Aff3: bits 39:32
+/// Aff2: bits 23:16
+/// Aff1: bits 15:8
+/// Aff0: bits 7:0
+#[inline]
+pub fn cpu_affinity() -> u64 {
+    let mpidr = read_mpidr_el1();
+
+    mpidr & 0x0000_00FF_00FF_FFFF
+}
+
 #[allow(dead_code)] // Debugging primitive.
 // Read the translation control register for EL1.
 pub fn read_tcr_el1() -> u64 {

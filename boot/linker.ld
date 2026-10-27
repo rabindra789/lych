@@ -48,10 +48,18 @@ SECTIONS
     /* Reverse a 16 KiB boot stack. */
     . = ALIGN(16);
 
-    __stack_bottom = .;
-    
+    __boot_stack_bottom = .;
     BOOT_STACK_SIZE = 16K;
     . += BOOT_STACK_SIZE;
+    __boot_stack_top = .;
 
+    . = ALIGN(16);
+    __secondary_stacks_bottom = .;
+    SECONDARY_STACK_SIZE = 16K;
+    SECONDARY_STACK_COUNT = 4;
+    . += SECONDARY_STACK_SIZE * SECONDARY_STACK_COUNT;
+    __secondary_stacks_top = .;
+
+    /* Keep the memory allocator beyond all reserved boot stacks. */
     __stack_top = .;
 }
