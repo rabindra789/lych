@@ -128,10 +128,16 @@ impl PageTableHierarchy {
         });
 
         with_page_table(self.uart_l2, |table| {
-            // GIC registers: 0x0800_0000 - 0x081F_FFFF
-            table.entries[64] = block_descriptor(0x0800_0000, ATTR_DEVICE | ACCESS_FLAG);
+            // Map the GIC Distributor and Redistributor region.
+            // Each L2 block covers 2 MiB.
+            for index in 64..69 {
+                let physical = 0x0800_0000 + ((index as u64 - 64) * 0x20_0000);
 
-            // PL011 UART
+                table.entries[index] = block_descriptor(physical, ATTR_DEVICE | ACCESS_FLAG);
+            }
+
+            // PL011 UART at 0x0900_0000.
+            // Required for UART output after enabling the MMU.
             table.entries[72] = block_descriptor(0x0900_0000, ATTR_DEVICE | ACCESS_FLAG);
         });
     }

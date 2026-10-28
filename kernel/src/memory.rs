@@ -300,26 +300,31 @@ pub fn test_page_table_mappings() {
             }
         });
 
-        // Verify device mappings: GIC at index 64 and UART at index 72.
+        // Verify device mappings: GIC Distributor/Redistributors and UART.
         mmu::with_page_table(hierarchy.uart_l2, |table| {
             let assert_device_block = |index: usize, expected_physical: u64| {
                 let entry = table.entries[index];
 
                 assert_eq!(entry & mmu::DESC_VALID, mmu::DESC_VALID);
-
                 assert_eq!(entry & mmu::DESC_TABLE, 0);
 
                 let physical = entry & 0x0000_FFFF_FFE0_0000;
-
                 assert_eq!(physical, expected_physical);
             };
 
-            assert_device_block(64, 0x0800_0000);
+            // Map 0x0800_0000 through 0x089F_FFFF in 2 MiB blocks.
+            for index in 64..69 {
+                let expected_physical = 0x0800_0000 + ((index as u64 - 64) * 0x20_0000);
+
+                assert_device_block(index, expected_physical);
+            }
+
+            // PL011 UART at 0x0900_0000.
             assert_device_block(72, 0x0900_0000);
 
             // No unexpected device mappings.
             for index in 0..mmu::ENTRY_COUNT {
-                if index != 64 && index != 72 {
+                if !(64..69).contains(&index) && index != 72 {
                     assert_eq!(table.entries[index], 0);
                 }
             }

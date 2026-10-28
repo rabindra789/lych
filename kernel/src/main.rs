@@ -15,6 +15,25 @@ use crate::arch::exception::ExceptionFrame;
 use core::sync::atomic::{AtomicU64, Ordering};
 
 static SECONDARY_ONLINE: AtomicU64 = AtomicU64::new(0);
+static CPU0_WORK_DONE: AtomicU64 = AtomicU64::new(0);
+static CPU1_WORK_DONE: AtomicU64 = AtomicU64::new(0);
+
+const SMP_WORK_ITERATIONS: u64 = 1_000_000;
+
+static CPU0_READY: AtomicU64 = AtomicU64::new(0);
+static CPU1_READY: AtomicU64 = AtomicU64::new(0);
+static SMP_START: AtomicU64 = AtomicU64::new(0);
+
+fn run_smp_workload(seed: u64) -> u64 {
+    let mut value = seed;
+
+    for i in 0..SMP_WORK_ITERATIONS {
+        value = value.wrapping_mul(6364136223846793005).wrapping_add(i | 1);
+        core::hint::spin_loop();
+    }
+
+    value
+}
 
 /// First Rust func to executed by the kernel
 #[unsafe(no_mangle)]
@@ -84,7 +103,13 @@ pub extern "C" fn kernel_main() -> ! {
     arch::cpu::enable_mmu();
     uart::puts("MMU enabled\n");
 
-    arch::gic::init();
+    arch::gic::init_distributor();
+
+    let redistributor = arch::gic::init_redistributor().expect("CPU0 GIC Redistributor not found");
+
+    uart::puts("CPU0 GIC Redistributor: ");
+    uart::put_hex(redistributor as u64);
+    uart::putc(b'\n');
 
     uart::puts("GICv3 initialized\n");
 
@@ -127,11 +152,91 @@ pub extern "C" fn kernel_main() -> ! {
 
         if SECONDARY_ONLINE.load(Ordering::Acquire) == 1 {
             uart::puts("CPU1 online: secondary entry confirmed\n");
+
+            uart::puts("CPU0: Ready for SMP barrier\n");
+            CPU0_READY.store(1, Ordering::Release);
+
+            let start = arch::timer::counter();
+            let timeout = arch::timer::frequency().saturating_mul(5);
+
+            while CPU1_READY.load(Ordering::Acquire) == 0 {
+                if arch::timer::counter().wrapping_sub(start) >= timeout {
+                    uart::puts("SMP TEST FAILED: CPU1 barrier timeout\n");
+                    break;
+                }
+
+                core::hint::spin_loop();
+            }
+
+            if CPU1_READY.load(Ordering::Acquire) != 0 {
+                SMP_START.store(1, Ordering::Release);
+                uart::puts("CPU0: Released SMP barrier\n");
+
+                let cpu0_result = run_smp_workload(0x1234);
+                CPU0_WORK_DONE.store(cpu0_result, Ordering::Release);
+
+                let start = arch::timer::counter();
+                let timeout = arch::timer::frequency().saturating_mul(5);
+
+                while CPU1_WORK_DONE.load(Ordering::Acquire) == 0 {
+                    if arch::timer::counter().wrapping_sub(start) >= timeout {
+                        break;
+                    }
+
+                    core::hint::spin_loop();
+                }
+
+                let cpu1_result = CPU1_WORK_DONE.load(Ordering::Acquire);
+
+                if cpu1_result != 0 && cpu0_result != cpu1_result {
+                    uart::puts("SMP BARRIER TEST PASSED\n");
+                } else {
+                    uart::puts("SMP BARRIER TEST FAILED\n");
+                }
+            }
         } else {
             uart::puts("CPU1 startup timed out\n");
         }
     }
 
+    let start = arch::timer::counter();
+    let timeout = arch::timer::frequency().saturating_mul(5);
+
+    while CPU1_READY.load(Ordering::Acquire) == 0 {
+        if arch::timer::counter().wrapping_sub(start) >= timeout {
+            uart::puts("SMP TEST FAILED: CPU1 barrier timeout\n");
+            break;
+        }
+
+        core::hint::spin_loop();
+    }
+
+    if CPU1_READY.load(Ordering::Acquire) != 0 {
+        SMP_START.store(1, Ordering::Release);
+        uart::puts("CPU0: Released SMP barrier\n");
+
+        let cpu0_result = run_smp_workload(0x1234);
+        CPU0_WORK_DONE.store(cpu0_result, Ordering::Release);
+
+        let start = arch::timer::counter();
+        let timeout = arch::timer::frequency().saturating_mul(5);
+
+        while CPU1_WORK_DONE.load(Ordering::Acquire) == 0 {
+            if arch::timer::counter().wrapping_sub(start) >= timeout {
+                break;
+            }
+
+            core::hint::spin_loop();
+        }
+
+        let cpu1_result = CPU1_WORK_DONE.load(Ordering::Acquire);
+
+        if cpu1_result != 0 && cpu0_result != cpu1_result {
+            uart::puts("SMP BARRIER TEST PASSED\n");
+        } else {
+            uart::puts("SMP BARRIER TEST FAILED\n");
+        }
+    }
 
     loop {
         core::hint::spin_loop();
@@ -260,13 +365,74 @@ pub extern "C" fn secondary_rust_entry(cpu_id: u64) -> ! {
     // Initialize CPU-local architectural state only.
     // Do not initialize global memory, heap, or the GIC Distributor.
     arch::cpu::init();
-
-    // Reuse the primary CPU's already-initialized page tables.
     memory::mmu::install_page_table_root();
     arch::cpu::enable_mmu();
 
-    // Publish readiness only after CPU-local setup is complete.
+    uart::puts("CPU1: Initializing GIC Redistributor...\n");
+
+    let redistributor = match arch::gic::init_redistributor() {
+        Some(base) => base,
+        None => {
+            uart::puts("CPU1: GIC Redistributor not found!\n");
+            loop {
+                arch::cpu::wait_for_interrupt();
+            }
+        }
+    };
+
+    uart::puts("CPU1 GIC Redistributor: ");
+    uart::put_hex(redistributor as u64);
+    uart::putc(b'\n');
+
+    let start_ticks = arch::timer_tick::ticks();
+    let start_counter = arch::timer::counter();
+    let timeout_ticks = arch::timer::frequency() * 2;
+
+    arch::timer_tick::init();
+
+    while arch::timer_tick::ticks().wrapping_sub(start_ticks) < 5
+        && arch::timer::counter().wrapping_sub(start_counter) < timeout_ticks
+    {
+        core::hint::spin_loop();
+    }
+
+    arch::timer_tick::shutdown();
+
+    let elapsed_ticks = arch::timer_tick::ticks().wrapping_sub(start_ticks);
+
+    let elapsed_counter = arch::timer::counter().wrapping_sub(start_counter);
+
+    uart::puts("CPU1 timer tick delta: ");
+    uart::put_hex(elapsed_ticks);
+    uart::putc(b'\n');
+
+    uart::puts("CPU1 timer elapsed counter: ");
+    uart::put_hex(elapsed_counter);
+    uart::putc(b'\n');
+
+    uart::puts("CPU1 timer timeout counter: ");
+    uart::put_hex(timeout_ticks);
+    uart::putc(b'\n');
+
     SECONDARY_ONLINE.store(cpu_id, Ordering::Release);
+
+    while CPU0_READY.load(Ordering::Acquire) == 0 {
+        core::hint::spin_loop();
+    }
+
+    uart::puts("CPU1: Ready for SMP barrier\n");
+    CPU1_READY.store(1, Ordering::Release);
+
+    while SMP_START.load(Ordering::Acquire) == 0 {
+        core::hint::spin_loop();
+    }
+
+    uart::puts("CPU1: Starting workload\n");
+
+    let cpu1_result = run_smp_workload(0x5678);
+    CPU1_WORK_DONE.store(cpu1_result, Ordering::Release);
+
+    uart::puts("CPU1: Workload complete\n");
 
     loop {
         arch::cpu::wait_for_interrupt();

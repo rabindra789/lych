@@ -1,4 +1,3 @@
-
 use core::arch::asm;
 
 /// PSCI 64-bit CPU_ON function ID.
