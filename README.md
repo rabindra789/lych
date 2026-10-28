@@ -210,6 +210,9 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for environmen
 
 Lych is released under the MIT License. See [LICENSE](LICENSE).
 
-<p align="center">
-  <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="rabindra789" data-color="#FFDD00" data-emoji="☕"  data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" ></script>
-</p>
+
+## Support
+
+If you find Lych useful, consider supporting its development.
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/rabindra789)
