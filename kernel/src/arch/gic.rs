@@ -32,6 +32,7 @@ const GICR_IPRIORITYR: usize = GICR_SGI_BASE + 0x0400;
 
 // QEMU virt physical timer PPI.
 pub const TIMER_IRQ: u32 = 30;
+pub const TEST_SGI: u32 = 1;
 
 #[inline]
 unsafe fn read_volatile(addr: usize) -> u32 {
@@ -240,18 +241,59 @@ pub fn init_redistributor() -> Option<usize> {
             core::hint::spin_loop();
         }
 
-        // Configure the physical timer PPI as Group 1 Non-secure.
+        // Configure the timer PPI and test SGI as Group 1 Non-secure.
         let group = redistributor + GICR_IGROUPR0;
-        let value = read_volatile(group) | (1 << TIMER_IRQ);
+        let value =
+            read_volatile(group) | (1 << TIMER_IRQ) | (1 << TEST_SGI);
         write_volatile(group, value);
 
         // Set the timer PPI priority.
-        let priority = redistributor + GICR_IPRIORITYR + TIMER_IRQ as usize;
-        write_volatile_u8(priority, 0x80);
+        let timer_priority =
+            redistributor + GICR_IPRIORITYR + TIMER_IRQ as usize;
+        write_volatile_u8(timer_priority, 0x80);
+
+        // Set SGI 1 priority.
+        let sgi_priority =
+            redistributor + GICR_IPRIORITYR + TEST_SGI as usize;
+        write_volatile_u8(sgi_priority, 0x80);
+
+        // Enable SGI 1 on this CPU.
+        write_volatile(
+            redistributor + GICR_ISENABLER0,
+            1 << TEST_SGI,
+        );
 
         // Enable the system-register CPU interface on this CPU.
         enable_system_register_interface();
     }
 
     Some(redistributor)
+}
+
+/// Send an SGI to a target CPU identified by its MPIDR affinity.
+pub fn send_sgi(target_mpidr: u64, intid: u32) {
+    assert!(intid < 16, "SGI ID must be less than 16");
+
+    let aff0 = target_mpidr & 0xFF;
+    let aff1 = (target_mpidr >> 8) & 0xFF;
+    let aff2 = (target_mpidr >> 16) & 0xFF;
+    let aff3 = (target_mpidr >> 32) & 0xFF;
+
+    assert!(aff0 < 16, "Target Aff0 requires RSS support");
+
+    let value = (1u64 << aff0)
+        | (aff1 << 16)
+        | ((intid as u64) << 24)
+        | (aff2 << 32)
+        | (aff3 << 48);
+
+    unsafe {
+        core::arch::asm!(
+            "dsb ishst",
+            "msr ICC_SGI1R_EL1, {value}",
+            "isb",
+            value = in(reg) value,
+            options(nostack, preserves_flags),
+        );
+    }
 }

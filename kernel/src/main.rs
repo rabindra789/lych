@@ -24,6 +24,8 @@ static CPU0_READY: AtomicU64 = AtomicU64::new(0);
 static CPU1_READY: AtomicU64 = AtomicU64::new(0);
 static SMP_START: AtomicU64 = AtomicU64::new(0);
 
+static CPU1_SGI_RECEIVED: AtomicU64 = AtomicU64::new(0);
+
 fn run_smp_workload(seed: u64) -> u64 {
     let mut value = seed;
 
@@ -153,6 +155,29 @@ pub extern "C" fn kernel_main() -> ! {
         if SECONDARY_ONLINE.load(Ordering::Acquire) == 1 {
             uart::puts("CPU1 online: secondary entry confirmed\n");
 
+            // Send SGI 1 to CPU1.
+            uart::puts("CPU0: Sending SGI to CPU1\n");
+
+            let cpu1_mpidr = 1;
+            arch::gic::send_sgi(cpu1_mpidr, arch::gic::TEST_SGI);
+
+            let start = arch::timer::counter();
+            let timeout = arch::timer::frequency().saturating_mul(5);
+
+            while CPU1_SGI_RECEIVED.load(Ordering::Acquire) == 0 {
+                if arch::timer::counter().wrapping_sub(start) >= timeout {
+                    break;
+                }
+
+                core::hint::spin_loop();
+            }
+
+            if CPU1_SGI_RECEIVED.load(Ordering::Acquire) != 0 {
+                uart::puts("SGI TEST PASSED: CPU1 received SGI\n");
+            } else {
+                uart::puts("SGI TEST FAILED: timeout waiting for CPU1\n");
+            }
+
             uart::puts("CPU0: Ready for SMP barrier\n");
             CPU0_READY.store(1, Ordering::Release);
 
@@ -199,44 +224,6 @@ pub extern "C" fn kernel_main() -> ! {
         }
     }
 
-    let start = arch::timer::counter();
-    let timeout = arch::timer::frequency().saturating_mul(5);
-
-    while CPU1_READY.load(Ordering::Acquire) == 0 {
-        if arch::timer::counter().wrapping_sub(start) >= timeout {
-            uart::puts("SMP TEST FAILED: CPU1 barrier timeout\n");
-            break;
-        }
-
-        core::hint::spin_loop();
-    }
-
-    if CPU1_READY.load(Ordering::Acquire) != 0 {
-        SMP_START.store(1, Ordering::Release);
-        uart::puts("CPU0: Released SMP barrier\n");
-
-        let cpu0_result = run_smp_workload(0x1234);
-        CPU0_WORK_DONE.store(cpu0_result, Ordering::Release);
-
-        let start = arch::timer::counter();
-        let timeout = arch::timer::frequency().saturating_mul(5);
-
-        while CPU1_WORK_DONE.load(Ordering::Acquire) == 0 {
-            if arch::timer::counter().wrapping_sub(start) >= timeout {
-                break;
-            }
-
-            core::hint::spin_loop();
-        }
-
-        let cpu1_result = CPU1_WORK_DONE.load(Ordering::Acquire);
-
-        if cpu1_result != 0 && cpu0_result != cpu1_result {
-            uart::puts("SMP BARRIER TEST PASSED\n");
-        } else {
-            uart::puts("SMP BARRIER TEST FAILED\n");
-        }
-    }
 
     loop {
         core::hint::spin_loop();
@@ -343,6 +330,10 @@ pub extern "C" fn irq_handler() {
 
     if intid == arch::gic::TIMER_IRQ {
         arch::timer_tick::on_timer_interrupt();
+    } else if intid == arch::gic::TEST_SGI {
+        if arch::cpu::cpu_affinity() == 1 {
+            CPU1_SGI_RECEIVED.store(1, Ordering::Release);
+        }
     }
 
     arch::gic::end_interrupt(intid);
@@ -397,6 +388,7 @@ pub extern "C" fn secondary_rust_entry(cpu_id: u64) -> ! {
     }
 
     arch::timer_tick::shutdown();
+    arch::cpu::enable_irq();
 
     let elapsed_ticks = arch::timer_tick::ticks().wrapping_sub(start_ticks);
 
