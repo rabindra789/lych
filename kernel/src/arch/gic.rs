@@ -241,27 +241,27 @@ pub fn init_redistributor() -> Option<usize> {
             core::hint::spin_loop();
         }
 
-        // Configure the timer PPI and test SGI as Group 1 Non-secure.
+        // Configure the timer PPI and SGIs 1-3 as Group 1 Non-secure.
+        let sgi_mask = (1u32 << TEST_SGI) | (1u32 << 2) | (1u32 << 3);
         let group = redistributor + GICR_IGROUPR0;
-        let value =
-            read_volatile(group) | (1 << TIMER_IRQ) | (1 << TEST_SGI);
+        let value = read_volatile(group) | (1u32 << TIMER_IRQ) | sgi_mask;
         write_volatile(group, value);
 
         // Set the timer PPI priority.
-        let timer_priority =
-            redistributor + GICR_IPRIORITYR + TIMER_IRQ as usize;
+        let timer_priority = redistributor + GICR_IPRIORITYR + TIMER_IRQ as usize;
         write_volatile_u8(timer_priority, 0x80);
 
-        // Set SGI 1 priority.
-        let sgi_priority =
-            redistributor + GICR_IPRIORITYR + TEST_SGI as usize;
-        write_volatile_u8(sgi_priority, 0x80);
+        // Set priorities for SGIs 1-3.
+        for intid in TEST_SGI..=3 {
+            let priority = redistributor + GICR_IPRIORITYR + intid as usize;
+            write_volatile_u8(priority, 0x80);
+        }
 
-        // Enable SGI 1 on this CPU.
-        write_volatile(
-            redistributor + GICR_ISENABLER0,
-            1 << TEST_SGI,
-        );
+        // Enable SGIs 1-3 on this CPU.
+        write_volatile(redistributor + GICR_ISENABLER0, sgi_mask);
+
+        // Ensure Redistributor configuration is visible before using the CPU interface.
+        core::arch::asm!("dsb sy", "isb", options(nostack, preserves_flags));
 
         // Enable the system-register CPU interface on this CPU.
         enable_system_register_interface();
@@ -281,11 +281,8 @@ pub fn send_sgi(target_mpidr: u64, intid: u32) {
 
     assert!(aff0 < 16, "Target Aff0 requires RSS support");
 
-    let value = (1u64 << aff0)
-        | (aff1 << 16)
-        | ((intid as u64) << 24)
-        | (aff2 << 32)
-        | (aff3 << 48);
+    let value =
+        (1u64 << aff0) | (aff1 << 16) | ((intid as u64) << 24) | (aff2 << 32) | (aff3 << 48);
 
     unsafe {
         core::arch::asm!(

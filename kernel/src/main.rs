@@ -24,8 +24,6 @@ static CPU0_READY: AtomicU64 = AtomicU64::new(0);
 static CPU1_READY: AtomicU64 = AtomicU64::new(0);
 static SMP_START: AtomicU64 = AtomicU64::new(0);
 
-static CPU1_SGI_RECEIVED: AtomicU64 = AtomicU64::new(0);
-
 fn run_smp_workload(seed: u64) -> u64 {
     let mut value = seed;
 
@@ -44,22 +42,28 @@ pub extern "C" fn kernel_main() -> ! {
     uart::puts("Booting...\n");
     let el = arch::cpu::current_el();
 
-    uart::puts("Current EL: ");
-    uart::put_hex(el);
-    uart::putc(b'\n');
+    uart::write(|out| {
+        out.puts("Current EL: ");
+        out.put_hex(el);
+        out.putc(b'\n');
+    });
 
     arch::cpu::init();
 
     let mpidr = arch::cpu::read_mpidr_el1();
     let affinity = arch::cpu::cpu_affinity();
 
-    uart::puts("MPIDR_EL1: ");
-    uart::put_hex(mpidr);
-    uart::putc(b'\n');
+    uart::write(|out| {
+        out.puts("MPIDR_EL1: ");
+        out.put_hex(mpidr);
+        out.putc(b'\n');
+    });
 
-    uart::puts("CPU affinity: ");
-    uart::put_hex(affinity);
-    uart::putc(b'\n');
+    uart::write(|out| {
+        out.puts("CPU affinity: ");
+        out.put_hex(affinity);
+        out.putc(b'\n');
+    });
 
     let timer_frequency = arch::timer::frequency();
     let start = arch::timer::counter();
@@ -70,17 +74,23 @@ pub extern "C" fn kernel_main() -> ! {
 
     let end = arch::timer::counter();
 
-    uart::puts("Timer frequency: ");
-    uart::put_hex(timer_frequency);
-    uart::putc(b'\n');
+    uart::write(|out| {
+        out.puts("Timer frequency: ");
+        out.put_hex(timer_frequency);
+        out.putc(b'\n');
+    });
 
-    uart::puts("Timer start: ");
-    uart::put_hex(start);
-    uart::putc(b'\n');
+    uart::write(|out| {
+        out.puts("Timer start: ");
+        out.put_hex(start);
+        out.putc(b'\n');
+    });
 
-    uart::puts("Timer end: ");
-    uart::put_hex(end);
-    uart::putc(b'\n');
+    uart::write(|out| {
+        out.puts("Timer end: ");
+        out.put_hex(end);
+        out.putc(b'\n');
+    });
 
     assert!(timer_frequency > 0);
     assert!(end > start);
@@ -109,9 +119,11 @@ pub extern "C" fn kernel_main() -> ! {
 
     let redistributor = arch::gic::init_redistributor().expect("CPU0 GIC Redistributor not found");
 
-    uart::puts("CPU0 GIC Redistributor: ");
-    uart::put_hex(redistributor as u64);
-    uart::putc(b'\n');
+    uart::write(|out| {
+        out.puts("CPU0 GIC Redistributor: ");
+        out.put_hex(redistributor as u64);
+        out.putc(b'\n');
+    });
 
     uart::puts("GICv3 initialized\n");
 
@@ -125,9 +137,11 @@ pub extern "C" fn kernel_main() -> ! {
 
     arch::timer_tick::shutdown();
 
-    uart::puts("Timer ticks: ");
-    uart::put_hex(arch::timer_tick::ticks());
-    uart::puts("\n");
+    uart::write(|out| {
+        out.puts("Timer ticks: ");
+        out.put_hex(arch::timer_tick::ticks());
+        out.putc(b'\n');
+    });
 
     uart::puts("Starting CPU1 through PSCI...\n");
 
@@ -135,9 +149,11 @@ pub extern "C" fn kernel_main() -> ! {
     let status = arch::psci::cpu_on(1, entry_point, 1);
 
     if status != 0 {
-        uart::puts("PSCI CPU_ON failed: ");
-        uart::put_hex(status as u64);
-        uart::putc(b'\n');
+        uart::write(|out| {
+            out.puts("PSCI CPU_ON failed: ");
+            out.put_hex(status as u64);
+            out.putc(b'\n');
+        });
     } else {
         // Wait for CPU1 to finish its CPU-local initialization.
         // Use the architectural counter for a bounded timeout.
@@ -159,12 +175,12 @@ pub extern "C" fn kernel_main() -> ! {
             uart::puts("CPU0: Sending SGI to CPU1\n");
 
             let cpu1_mpidr = 1;
-            arch::gic::send_sgi(cpu1_mpidr, arch::gic::TEST_SGI);
+            arch::ipi::send(cpu1_mpidr, arch::ipi::IpiKind::Test);
 
             let start = arch::timer::counter();
             let timeout = arch::timer::frequency().saturating_mul(5);
 
-            while CPU1_SGI_RECEIVED.load(Ordering::Acquire) == 0 {
+            while arch::ipi::CPU1_TEST_RECEIVED.load(Ordering::Acquire) == 0 {
                 if arch::timer::counter().wrapping_sub(start) >= timeout {
                     break;
                 }
@@ -172,10 +188,32 @@ pub extern "C" fn kernel_main() -> ! {
                 core::hint::spin_loop();
             }
 
-            if CPU1_SGI_RECEIVED.load(Ordering::Acquire) != 0 {
+            if arch::ipi::CPU1_TEST_RECEIVED.load(Ordering::Acquire) != 0 {
                 uart::puts("SGI TEST PASSED: CPU1 received SGI\n");
             } else {
                 uart::puts("SGI TEST FAILED: timeout waiting for CPU1\n");
+            }
+
+            uart::puts("CPU0: Sending Work IPI\n");
+            arch::ipi::send(1, arch::ipi::IpiKind::Work);
+
+            uart::puts("CPU0: Waiting for Work IPI acknowledgment\n");
+
+            let start = arch::timer::counter();
+            let timeout = arch::timer::frequency().saturating_mul(5);
+
+            while arch::ipi::CPU1_WORK_IPI_RECEIVED.load(Ordering::Acquire) == 0 {
+                if arch::timer::counter().wrapping_sub(start) >= timeout {
+                    break;
+                }
+
+                core::hint::spin_loop();
+            }
+
+            if arch::ipi::CPU1_WORK_IPI_RECEIVED.load(Ordering::Acquire) != 0 {
+                uart::puts("WORK IPI TEST PASSED: CPU1 received Work IPI\n");
+            } else {
+                uart::puts("WORK IPI TEST FAILED: timeout waiting for CPU1\n");
             }
 
             uart::puts("CPU0: Ready for SMP barrier\n");
@@ -224,7 +262,6 @@ pub extern "C" fn kernel_main() -> ! {
         }
     }
 
-
     loop {
         core::hint::spin_loop();
     }
@@ -245,60 +282,83 @@ fn halt() -> ! {
 pub extern "C" fn exception_handler(frame: &mut ExceptionFrame) {
     let ec = arch::exception::exception_class(frame.esr);
 
-    uart::puts("\n");
-    uart::puts("Lych Kernel Exception\n");
-    uart::puts("-------------------------------\n");
+    uart::write(|out| {
+        out.puts("\nLych Kernel Exception\n");
+        out.puts("-------------------------------\n");
+    });
 
-    uart::puts("Exception : ");
-    uart::puts(arch::exception::exception_name(ec));
-    uart::putc(b'\n');
+    uart::write(|out| {
+        out.puts("Exception : ");
+        out.puts(arch::exception::exception_name(ec));
+        out.putc(b'\n');
+    });
 
-    uart::puts("ESR_EL1   : ");
-    uart::put_hex(frame.esr);
-    uart::putc(b'\n');
+    uart::write(|out| {
+        out.puts("ESR_EL1   : ");
+        out.put_hex(frame.esr);
+        out.putc(b'\n');
+    });
 
-    uart::puts("ELR_EL1   : ");
-    uart::put_hex(frame.elr);
-    uart::putc(b'\n');
+    uart::write(|out| {
+        out.puts("ELR_EL1   : ");
+        out.put_hex(frame.elr);
+        out.putc(b'\n');
+    });
 
-    uart::puts("SPSR_EL1  : ");
-    uart::put_hex(frame.spsr);
-    uart::putc(b'\n');
+    uart::write(|out| {
+        out.puts("SPSR_EL1  : ");
+        out.put_hex(frame.spsr);
+        out.putc(b'\n');
+    });
 
     let previous_el = arch::exception::previous_exception_level(frame.spsr);
 
-    uart::puts("Previous EL: ");
-    uart::puts(arch::exception::exception_level_name(previous_el));
-    uart::putc(b'\n');
+    uart::write(|out| {
+        out.puts("Previous EL: ");
+        out.puts(arch::exception::exception_level_name(previous_el));
+        out.putc(b'\n');
+    });
 
     match ec {
         arch::exception::EC_INSTRUCTION_ABORT_LOWER_EL
         | arch::exception::EC_INSTRUCTION_ABORT_SAME_EL => {
-            uart::puts("FAR_EL1   : ");
-            uart::put_hex(arch::cpu::read_far_el1());
-            uart::putc(b'\n');
+            uart::write(|out| {
+                out.puts("FAR_EL1   : ");
+                out.put_hex(arch::cpu::read_far_el1());
+                out.putc(b'\n');
+            });
 
-            uart::puts("IFSC      : ");
-            uart::put_hex(frame.esr & 0x3f);
-            uart::putc(b'\n');
+            uart::write(|out| {
+                out.puts("IFSC      : ");
+                out.put_hex(frame.esr & 0x3f);
+                out.putc(b'\n');
+            });
 
-            uart::puts("Fault     : ");
-            uart::puts(arch::exception::fault_status_name(frame.esr));
-            uart::putc(b'\n');
+            uart::write(|out| {
+                out.puts("Fault     : ");
+                out.puts(arch::exception::fault_status_name(frame.esr));
+                out.putc(b'\n');
+            });
         }
 
         arch::exception::EC_DATA_ABORT_LOWER_EL | arch::exception::EC_DATA_ABORT_SAME_EL => {
-            uart::puts("FAR_EL1   : ");
-            uart::put_hex(arch::cpu::read_far_el1());
-            uart::putc(b'\n');
+            uart::write(|out| {
+                out.puts("FAR_EL1   : ");
+                out.put_hex(arch::cpu::read_far_el1());
+                out.putc(b'\n');
+            });
 
-            uart::puts("DFSC      : ");
-            uart::put_hex(frame.esr & 0x3f);
-            uart::putc(b'\n');
+            uart::write(|out| {
+                out.puts("DFSC      : ");
+                out.put_hex(frame.esr & 0x3f);
+                out.putc(b'\n');
+            });
 
-            uart::puts("Fault     : ");
-            uart::puts(arch::exception::fault_status_name(frame.esr));
-            uart::putc(b'\n');
+            uart::write(|out| {
+                out.puts("Fault     : ");
+                out.puts(arch::exception::fault_status_name(frame.esr));
+                out.putc(b'\n');
+            });
         }
 
         _ => {}
@@ -330,10 +390,8 @@ pub extern "C" fn irq_handler() {
 
     if intid == arch::gic::TIMER_IRQ {
         arch::timer_tick::on_timer_interrupt();
-    } else if intid == arch::gic::TEST_SGI {
-        if arch::cpu::cpu_affinity() == 1 {
-            CPU1_SGI_RECEIVED.store(1, Ordering::Release);
-        }
+    } else if let Some(kind) = arch::ipi::IpiKind::from_interrupt_id(intid) {
+        arch::ipi::handle(kind);
     }
 
     arch::gic::end_interrupt(intid);
@@ -371,9 +429,11 @@ pub extern "C" fn secondary_rust_entry(cpu_id: u64) -> ! {
         }
     };
 
-    uart::puts("CPU1 GIC Redistributor: ");
-    uart::put_hex(redistributor as u64);
-    uart::putc(b'\n');
+    uart::write(|out| {
+        out.puts("CPU1 GIC Redistributor: ");
+        out.put_hex(redistributor as u64);
+        out.putc(b'\n');
+    });
 
     let start_ticks = arch::timer_tick::ticks();
     let start_counter = arch::timer::counter();
@@ -394,17 +454,23 @@ pub extern "C" fn secondary_rust_entry(cpu_id: u64) -> ! {
 
     let elapsed_counter = arch::timer::counter().wrapping_sub(start_counter);
 
-    uart::puts("CPU1 timer tick delta: ");
-    uart::put_hex(elapsed_ticks);
-    uart::putc(b'\n');
+    uart::write(|out| {
+        out.puts("CPU1 timer tick delta: ");
+        out.put_hex(elapsed_ticks);
+        out.putc(b'\n');
+    });
 
-    uart::puts("CPU1 timer elapsed counter: ");
-    uart::put_hex(elapsed_counter);
-    uart::putc(b'\n');
+    uart::write(|out| {
+        out.puts("CPU1 timer elapsed counter: ");
+        out.put_hex(elapsed_counter);
+        out.putc(b'\n');
+    });
 
-    uart::puts("CPU1 timer timeout counter: ");
-    uart::put_hex(timeout_ticks);
-    uart::putc(b'\n');
+    uart::write(|out| {
+        out.puts("CPU1 timer timeout counter: ");
+        out.put_hex(timeout_ticks);
+        out.putc(b'\n');
+    });
 
     SECONDARY_ONLINE.store(cpu_id, Ordering::Release);
 
