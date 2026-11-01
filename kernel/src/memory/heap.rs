@@ -1,5 +1,5 @@
+use crate::sync::spinlock::SpinLock;
 use core::alloc::{GlobalAlloc, Layout};
-use core::cell::UnsafeCell;
 
 #[repr(C)]
 struct FreeBlock {
@@ -16,6 +16,10 @@ pub struct KernelHeap {
     free_list: *mut FreeBlock,
     allocated: usize,
 }
+
+// The free-list pointers refer to the heap arena, not to the KernelHeap
+// struct itself. Access to the heap metadata is serialized by SpinLock.
+unsafe impl Send for KernelHeap {}
 
 impl KernelHeap {
     pub const fn new() -> Self {
@@ -300,39 +304,32 @@ impl KernelHeap {
 }
 
 pub struct GlobalHeap {
-    heap: UnsafeCell<KernelHeap>,
+    heap: SpinLock<KernelHeap>,
 }
 
 impl GlobalHeap {
     pub const fn new() -> Self {
         Self {
-            heap: UnsafeCell::new(KernelHeap::new()),
+            heap: SpinLock::new(KernelHeap::new()),
         }
     }
 
     pub fn init(&self, start: usize, size: usize, max_size: usize) {
-        unsafe {
-            (*self.heap.get()).init(start, size, max_size);
-        }
+        self.heap.lock_irqsave().init(start, size, max_size);
     }
 }
 
-// Lych is currently single core and the heap is not accessed concurrently. This will need to be replaced with real synchronization when SMP/preemption is added.
-unsafe impl Sync for GlobalHeap {}
-
 unsafe impl GlobalAlloc for GlobalHeap {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        unsafe {
-            match (*self.heap.get()).allocate(layout) {
-                Some(ptr) => ptr,
-                None => core::ptr::null_mut(),
-            }
+        match self.heap.lock_irqsave().allocate(layout) {
+            Some(ptr) => ptr,
+            None => core::ptr::null_mut(),
         }
     }
 
-    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         unsafe {
-            (*self.heap.get()).deallocate(_ptr, _layout);
+            self.heap.lock_irqsave().deallocate(ptr, layout);
         }
     }
 }
